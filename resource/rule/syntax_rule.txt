@@ -1,0 +1,225 @@
+/* ==================== 终结符声明 ==================== */
+%token INT FLOAT CHAR VOID
+%token IF ELSE WHILE FOR DO RETURN BREAK CONTINUE
+%token ADD SUB MUL DIV MOD                             /* +, -, *, /, % */
+%token INC DEC                                         /* ++, -- */
+%token ASSIGN                                          /* = */
+%token EQ NE LT LE GT GE                               /* ==, !=, <, <=, >, >= */
+%token AND OR NOT                                      /* &&, ||, ! */
+%token AMPER MUL_TOKEN                                 /* &, * */
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET   /* ( ) { } [ ] */
+%token COMMA SEMICOLON                                 /* , ; */
+%token IDENTIFIER NUMBER STRING
+
+/* ==================== 优先级和结合性 ==================== */
+%right ASSIGN
+%left OR
+%left AND
+%left EQ NE
+%left LT LE GT GE
+%left ADD SUB
+%left MUL DIV MOD
+%right NOT UMINUS
+%left INC DEC LBRACKET LPAREN
+
+%start program
+
+%%
+
+/* ==================== 程序结构 ==================== */
+program
+    : external_declaration_list
+    ;
+
+external_declaration_list
+    : external_declaration
+    | external_declaration_list external_declaration
+    ;
+
+external_declaration
+    : function_definition
+    | declaration
+    ;
+
+/* ==================== 声明部分 ==================== */
+declaration
+    : type_specifier init_declarator_list SEMICOLON
+    ;
+
+type_specifier
+    : INT
+    | FLOAT
+    | CHAR
+    | VOID
+    ;
+
+init_declarator_list
+    : init_declarator
+    | init_declarator_list COMMA init_declarator
+    ;
+
+init_declarator
+    : declarator
+    | declarator ASSIGN initializer
+    ;
+
+declarator
+    : IDENTIFIER
+    | MUL_TOKEN declarator
+    | declarator LBRACKET NUMBER RBRACKET
+    | declarator LBRACKET RBRACKET
+    ;
+
+initializer
+    : expression
+    ;
+
+/* ==================== 函数定义 ==================== */
+function_definition
+    : type_specifier IDENTIFIER LPAREN parameter_list RPAREN compound_statement
+    | type_specifier IDENTIFIER LPAREN RPAREN compound_statement
+    ;
+
+parameter_list
+    : parameter_declaration
+    | parameter_list COMMA parameter_declaration
+    ;
+
+parameter_declaration
+    : type_specifier declarator
+    | type_specifier
+    ;
+
+/* ==================== 语句部分 ==================== */
+statement
+    : expression_statement
+    | compound_statement
+    | selection_statement
+    | iteration_statement
+    | jump_statement
+    | declaration
+    ;
+
+expression_statement
+    : expression SEMICOLON
+    | SEMICOLON
+    ;
+
+compound_statement
+    : LBRACE statement_list RBRACE
+    | LBRACE RBRACE
+    ;
+
+statement_list
+    : statement
+    | statement_list statement
+    ;
+
+selection_statement
+    : IF LPAREN expression RPAREN statement
+    | IF LPAREN expression RPAREN statement ELSE statement
+    ;
+
+iteration_statement
+    : WHILE LPAREN expression RPAREN statement
+    | DO statement WHILE LPAREN expression RPAREN SEMICOLON
+    | FOR LPAREN expression_statement expression_statement expression RPAREN statement
+    | FOR LPAREN expression_statement expression_statement RPAREN statement
+    ;
+
+jump_statement
+    : RETURN expression SEMICOLON
+    | RETURN SEMICOLON
+    | BREAK SEMICOLON
+    | CONTINUE SEMICOLON
+    ;
+
+/* ==================== 表达式部分 ==================== */
+expression
+    : assignment_expression
+    | expression COMMA assignment_expression
+    ;
+
+assignment_expression
+    : conditional_expression
+    | unary_expression ASSIGN assignment_expression
+    ;
+
+conditional_expression
+    : logical_or_expression
+    | logical_or_expression '?' expression ':' conditional_expression
+    ;
+
+logical_or_expression
+    : logical_and_expression
+    | logical_or_expression OR logical_and_expression
+    ;
+
+logical_and_expression
+    : equality_expression
+    | logical_and_expression AND equality_expression
+    ;
+
+equality_expression
+    : relational_expression
+    | equality_expression EQ relational_expression
+    | equality_expression NE relational_expression
+    ;
+
+relational_expression
+    : additive_expression
+    | relational_expression LT additive_expression
+    | relational_expression LE additive_expression
+    | relational_expression GT additive_expression
+    | relational_expression GE additive_expression
+    ;
+
+additive_expression
+    : multiplicative_expression
+    | additive_expression ADD multiplicative_expression
+    | additive_expression SUB multiplicative_expression
+    ;
+
+multiplicative_expression
+    : cast_expression
+    | multiplicative_expression MUL cast_expression
+    | multiplicative_expression DIV cast_expression
+    | multiplicative_expression MOD cast_expression
+    ;
+
+cast_expression
+    : unary_expression
+    | LPAREN type_specifier RPAREN cast_expression
+    ;
+
+unary_expression
+    : postfix_expression
+    | INC unary_expression
+    | DEC unary_expression
+    | ADD unary_expression        %prec UMINUS
+    | SUB unary_expression        %prec UMINUS
+    | NOT unary_expression
+    | AMPER unary_expression
+    | MUL_TOKEN unary_expression
+    ;
+
+postfix_expression
+    : primary_expression
+    | postfix_expression LBRACKET expression RBRACKET
+    | postfix_expression LPAREN argument_list RPAREN
+    | postfix_expression LPAREN RPAREN
+    | postfix_expression INC
+    | postfix_expression DEC
+    ;
+
+argument_list
+    : assignment_expression
+    | argument_list COMMA assignment_expression
+    ;
+
+primary_expression
+    : IDENTIFIER
+    | NUMBER
+    | STRING
+    | LPAREN expression RPAREN
+    ;
