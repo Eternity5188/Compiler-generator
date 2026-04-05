@@ -20,6 +20,7 @@
 %left ADD SUB
 %left MUL DIV MOD
 %right NOT UMINUS
+%right INC DEC
 %left INC DEC LBRACKET LPAREN
 
 %start program
