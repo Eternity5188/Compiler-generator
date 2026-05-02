@@ -77,6 +77,7 @@ bool SyntaxRuleParser::read_lines(std::vector<std::string>& lines, const std::fi
             lines.push_back(data);
     }
     file_in.close();
+
     return true;
 }
 bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, std::size_t begin, std::size_t size, Grammar& grammar)
@@ -126,61 +127,67 @@ bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, 
 }
 bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::size_t begin, std::size_t size, Grammar& grammar)
 {
-    bool in_production { false };
-    unsigned int state = 0;
+    std::vector<std::string> tokens;
+    for (std::size_t index = begin; index < size; ++index)
+    {
+        std::istringstream str_in{lines[index]};
+        std::string token;
+        while (str_in >> token)
+            tokens.push_back(token);
+    }
 
+    unsigned int state = 0;
     std::string left_name;
     std::vector<std::string> right_names;
 
-    for (std::size_t index = begin; index < size; ++index)
-    {   
-        std::istringstream str_in{lines[index]};
-        std::string token;
 
-        while (str_in >> token)
+    for (const std::string& token : tokens)
+    {
+        if (token == "%prec")
         {
-            if (token == "%prec")
-            {
-                str_in >> token;  // 暂时跳过优先级标记（如 UMINUS）
-                continue;
-            }
+            continue;   // 暂时跳过优先级标记（如 UMINUS）
+        }
 
-            switch (state)
+        switch (state)
+        {
+        case 0:
+            if (token == ":" || token == ";")
             {
-            case 0:
-                if (token == ":" || token == ";")
-                {
-                    std::cerr << "Invalid production" << '\n';
-                    return false;
-                }
-                left_name = token;
-                if (grammar.get_non_terminal(token) == nullptr)
-                    grammar.add_non_terminal(token);
-                state = 1;
-                break;
-            case 1:
-                if (token != ":")
-                {
-                    std::cerr << "Invalid production" << '\n';
-                    return false;
-                }
-                state = 2;
-                break;
-            case 2:
-                if (token == "|" || token == ";")
-                {
-                    grammar.add_production(left_name, right_names);
-                    right_names.clear();
-                    state = token == "|" ? 2 : 0;
-                }
-                else
-                {
-                    right_names.push_back(token);
-                    if (grammar.get_symbol(token) == nullptr)
-                        grammar.add_non_terminal(token);
-                }
-                break;
+                std::cerr << "Invalid production" << '\n';
+                return false;
             }
+            left_name = token;
+            if (grammar.get_non_terminal(token) == nullptr)
+                grammar.add_non_terminal(token);
+            state = 1;
+            break;
+        case 1:
+            if (token != ":")
+            {
+                std::cerr << "Invalid production" << '\n';
+                return false;
+            }
+            state = 2;
+            break;
+        case 2:
+            if (token == "|")
+            {
+                grammar.add_production(left_name, right_names);
+                right_names.clear();
+            }
+            else if (token == ";")
+            {
+                grammar.add_production(left_name, right_names);
+                right_names.clear();
+                state = 0;
+            }
+            else
+            {
+                right_names.push_back(token);
+                if (grammar.get_symbol(token) == nullptr)
+                    grammar.add_non_terminal(token);
+            }
+            break;
         }
     }
 

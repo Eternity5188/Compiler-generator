@@ -9,8 +9,11 @@ int main()
 
     Grammar grammar;
     SyntaxRuleParser::parse(file, grammar);
-
     grammar.show();
+
+    grammar.compute_first_sets();
+    grammar.compute_follow_sets();
+    grammar.show_first_follow();
 
     return 0;
 }
