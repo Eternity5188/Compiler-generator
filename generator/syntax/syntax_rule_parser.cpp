@@ -1,80 +1,41 @@
 #include "syntax_rule_parser.h"
 
 
+#include "symbol.h"
+#include "production.h"
+#include "grammar.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
 
 
-SyntaxRuleParser::SyntaxRuleParser()
-    :inited_{false}, file_path_{}, start_symbol{Symbol::Type::NonTerminal, ""}
-{}
-
-bool SyntaxRuleParser::init(const std::filesystem::path& file_path)
+bool SyntaxRuleParser::parse(const std::filesystem::path& file_path, Grammar& grammar)
 {
     if (std::filesystem::is_regular_file(file_path) == false)
         return false;
 
-    file_path_ = file_path;
-    inited_ = true;
-    return true;
-}
-bool SyntaxRuleParser::parse()
-{
-    if (inited_ == false)
-        return false;
-
     // 读取所有的行
     std::vector<std::string> lines;
-    if (read_lines(lines) == false)
+    if (read_lines(lines, file_path) == false)
         return false;
-    
+
     // 查找 "%%"
     std::size_t index = 0;
     while (index < lines.size() && lines[index].find("%%") == std::string::npos)
         ++index;
 
-    if (parse_declaration(lines, 0, index) == false)
+    if (parse_declaration(lines, 0, index, grammar) == false)
         return false;
-    if (parse_rule(lines, index + 1, lines.size() - index - 1) == false)
+    if (parse_rule(lines, index + 1, lines.size() - index - 1, grammar) == false)
         return false;
+
     return true;
 }
-void SyntaxRuleParser::show() const
-{
-    std::cout << "Start: " << '\n';
-    std::cout << start_symbol.get_name() << '\n';
-    
-    std::cout << "\n==========\n";
 
-    std::cout << "Symbol: " << '\n';
-    for (auto& symbol : symbols_)
-    {
-        std::cout << symbol.get_name() << '\n';
-    }
-    
-    std::cout << "\n==========\n";
-
-    std::cout << "Production: " << '\n';
-    for (auto& production : productions_)
-    {
-        std::cout << production.to_string() << '\n';
-    }
-}
-std::optional<Symbol> SyntaxRuleParser::get_symbol(const std::string_view name) const
+bool SyntaxRuleParser::read_lines(std::vector<std::string>& lines, const std::filesystem::path& file_path)
 {
-    auto it = std::find_if(symbols_.begin(), symbols_.end(),
-        [name](const Symbol& symbol) { return symbol.get_name() == name; }
-    );
-    if (it != symbols_.end())
-        return *it;
-    return std::nullopt;
-}
-
-bool SyntaxRuleParser::read_lines(std::vector<std::string>& lines)
-{
-    std::ifstream file_in(file_path_);
+    std::ifstream file_in(file_path);
     if (file_in.is_open() == false)
         return false;
 
@@ -118,8 +79,7 @@ bool SyntaxRuleParser::read_lines(std::vector<std::string>& lines)
     file_in.close();
     return true;
 }
-
-bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, std::size_t begin, std::size_t size)
+bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, std::size_t begin, std::size_t size, Grammar& grammar)
 {
     std::string token;
     unsigned int precedence = 1;
@@ -137,48 +97,40 @@ bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, 
         if (type == "%token")        
         {
             while (str_in >> token)
-                symbols_.emplace(Symbol::Type::Terminal, token);
+                grammar.add_terminal(token);
             continue;
         }
         if (type == "%left")
         {
             while (str_in >> token)
-                symbols_.emplace(Symbol::Type::Terminal, token, precedence, Associativity::Left);
+                grammar.add_terminal(token, precedence, Associativity::Left);
             ++precedence;
             continue;
         }
         if (type == "%right")
         {
             while (str_in >> token)
-                symbols_.emplace(Symbol::Type::Terminal, token, precedence, Associativity::Right);
+                grammar.add_terminal(token, precedence, Associativity::Right);
             ++precedence;
             continue;
         }
         if (type == "%start")
         {
             str_in >> token;
-            start_symbol.set_name(token);
+            grammar.add_non_terminal(token);
+            grammar.set_start_symbol(token);
             continue;
         }
     }
     return true;
 }
-bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::size_t begin, std::size_t size)
+bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::size_t begin, std::size_t size, Grammar& grammar)
 {
-    unsigned int production_id = 0;
     bool in_production { false };
-    Symbol left{Symbol::Type::NonTerminal, ""};
-    std::vector<Symbol> right;
     unsigned int state = 0;
 
-    auto get_or_create_symbol = [this](const std::string& name, Symbol::Type default_type = Symbol::Type::NonTerminal) -> Symbol {
-        auto opt = get_symbol(name);
-        if (opt)
-            return *opt;
-        Symbol new_sym(default_type, name);
-        symbols_.insert(new_sym);
-        return new_sym;
-    };
+    std::string left_name;
+    std::vector<std::string> right_names;
 
     for (std::size_t index = begin; index < size; ++index)
     {   
@@ -201,7 +153,9 @@ bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::si
                     std::cerr << "Invalid production" << '\n';
                     return false;
                 }
-                left = get_or_create_symbol(token);
+                left_name = token;
+                if (grammar.get_non_terminal(token) == nullptr)
+                    grammar.add_non_terminal(token);
                 state = 1;
                 break;
             case 1:
@@ -215,15 +169,15 @@ bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::si
             case 2:
                 if (token == "|" || token == ";")
                 {
-                    productions_.emplace(production_id, left, right);
-                    ++production_id;
-                    right.clear();
+                    grammar.add_production(left_name, right_names);
+                    right_names.clear();
                     state = token == "|" ? 2 : 0;
                 }
                 else
                 {
-                    Symbol symbol = get_or_create_symbol(token);
-                    right.push_back(symbol);
+                    right_names.push_back(token);
+                    if (grammar.get_symbol(token) == nullptr)
+                        grammar.add_non_terminal(token);
                 }
                 break;
             }

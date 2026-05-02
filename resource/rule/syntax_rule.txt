@@ -8,7 +8,7 @@
 %token AND OR NOT                                      /* &&, ||, ! */
 %token AMPER MUL_TOKEN                                 /* &, * */
 %token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET   /* ( ) { } [ ] */
-%token COMMA SEMICOLON                                 /* , ; */
+%token QUESTION COLON COMMA SEMICOLON                  /* ? : , ; */
 %token IDENTIFIER NUMBER STRING
 
 /* ==================== 优先级和结合性 ==================== */
@@ -148,7 +148,7 @@ assignment_expression
 
 conditional_expression
     : logical_or_expression
-    | logical_or_expression '?' expression ':' conditional_expression
+    | logical_or_expression QUESTION expression COLON conditional_expression
     ;
 
 logical_or_expression

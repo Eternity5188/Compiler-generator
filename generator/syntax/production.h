@@ -1,26 +1,32 @@
 #pragma once
 
 
-#include "symbol.h"
-#include <vector>
+#include <cstdint>
 #include <string>
+#include <vector>
 
+
+class Symbol;
 
 class Production
 {
 public:
-    Production(unsigned int id, const Symbol& left, const std::vector<Symbol>& right);
-    std::string to_string() const;
-    unsigned int get_id() const;
+    Production(uint32_t id, const Symbol* left, const std::vector<const Symbol*>& right);
+    
+    const std::string to_string() const;
+    
+    const uint32_t get_id() const;
+    const Symbol* get_left() const;
+    const std::vector<const Symbol*>& get_right() const;
 
     bool operator==(const Production& other) const
     {
         return id_ == other.id_;
     }
 private:
-    unsigned int id_;
-    Symbol left_;
-    std::vector<Symbol> right_;
+    uint32_t id_;
+    const Symbol* left_;
+    std::vector<const Symbol*> right_;
 };
 
 namespace std {
@@ -29,7 +35,7 @@ namespace std {
     {
         size_t operator()(const Production& production) const
         {
-            return hash<unsigned int>()(production.get_id());   // 只哈希 id
+            return hash<uint32_t>{}(production.get_id());
         }
     };
 }

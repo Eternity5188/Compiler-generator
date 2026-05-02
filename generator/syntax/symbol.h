@@ -1,29 +1,31 @@
 #pragma once
 
 
+#include "associativity.h"
+#include <cstdint>
 #include <string>
 #include <string_view>
 
-
-enum class Associativity
-{
-    Left, Right, None
-};
 
 class Symbol
 {
 public:
     enum class Type
     {
-        Terminal, NonTerminal
+        Terminal, NonTerminal, Epsilon, End
     };
 
 public:
+    static const Symbol get_epsilon();
+    static const Symbol get_end();
+
     Symbol(Type type, const std::string_view name);
-    Symbol(Type type, const std::string_view name, unsigned int precedence, Associativity associativity);
+    Symbol(Type type, const std::string_view name, uint32_t precedence, Associativity associativity);
 
     void set_name(const std::string_view name);
-    std::string get_name() const;
+
+    const Type get_type() const;
+    const std::string get_name() const;
 
     bool operator==(const Symbol& other) const
     {
@@ -34,7 +36,7 @@ private:
     Type type_;
     std::string name_;
     bool is_operator_;
-    unsigned int precedence_;
+    uint32_t precedence_;
     Associativity associativity_;
 };
 
@@ -44,7 +46,7 @@ namespace std {
     {
         size_t operator()(const Symbol& symbol) const
         {
-            return hash<std::string>()(symbol.get_name());
+            return hash<std::string>{}(symbol.get_name());
         }
     };
 }

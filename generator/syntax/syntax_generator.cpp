@@ -1,17 +1,16 @@
+#include "grammar.h"
 #include "syntax_rule_parser.h"
 #include <filesystem>
-
+#include <iostream>
 
 int main()
 {
     std::filesystem::path file{"./resource/rule/syntax_rule.txt"};
 
-    SyntaxRuleParser parser;
-    parser.init(file);
+    Grammar grammar;
+    SyntaxRuleParser::parse(file, grammar);
 
-    parser.parse();
-
-    parser.show();
+    grammar.show();
 
     return 0;
 }
