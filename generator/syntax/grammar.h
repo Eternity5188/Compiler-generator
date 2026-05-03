@@ -4,12 +4,11 @@
 #include "associativity.h"
 #include "symbol.h"
 #include "production.h"
-#include <unordered_set>
-#include <unordered_map>
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <optional>
+#include <unordered_set>
+#include <unordered_map>
 
 
 class Grammar

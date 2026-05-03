@@ -77,11 +77,11 @@ void Grammar::compute_first_sets()
 {
     first_set_map_.clear();
 
-    first_set_map_[epsilon_.get_name()].insert(&epsilon_);
     for (const Symbol& terminal : terminals_)
         first_set_map_[terminal.get_name()].insert(&terminal);
+    first_set_map_[epsilon_.get_name()].insert(&epsilon_);
     for (const Symbol& non_terminal : non_terminals_)
-        first_set_map_[non_terminal.get_name()];
+        first_set_map_[non_terminal.get_name()] = {};
 
     bool updated = true;
     while (updated)
@@ -93,12 +93,41 @@ void Grammar::compute_first_sets()
             const Symbol* left_symbol = production.get_left();
             const std::vector<const Symbol*>& right_symbols = production.get_right();
 
-            std::unordered_set<const Symbol*> first_of_sequence = compute_first_of_sequence(right_symbols);
-
-            auto& first_set = first_set_map_[left_symbol->get_name()];
-            for (const Symbol* f : first_of_sequence)
+            // A -> /epsilon
+            if (right_symbols.front() == &epsilon_)
             {
-                auto [it, success] = first_set.insert(f);
+                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&epsilon_);
+                if (success)
+                    updated = true;
+                continue;
+            }
+            // A -> X1 X2 ... Xn
+            bool all_nullable = true;
+            for (const Symbol* symbol : right_symbols)
+            {
+                // 添加First(symbol)的非/epsilon符号
+                const std::unordered_set<const Symbol*>& first_set = first_set_map_[symbol->get_name()];
+                for (const Symbol* f : first_set)
+                {
+                    if (f != &epsilon_)
+                    {
+                        auto [it, success] = first_set_map_[left_symbol->get_name()].insert(f);
+                        if (success)
+                            updated = true;
+                    }
+                }
+                // First(symbol)不含/epsilon
+                auto it = first_set.find(&epsilon_);
+                if (it == first_set.end())
+                {
+                    all_nullable = false;
+                    break;
+                }
+            }
+            // 添加/epsilon
+            if (all_nullable)
+            {
+                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&epsilon_);
                 if (success)
                     updated = true;
             }
@@ -128,31 +157,31 @@ void Grammar::compute_follow_sets()
             {
                 // 遍历非终结符
                 const Symbol* symbol = right_symbols[i];
-                if (symbol->get_type() == Symbol::Type::Terminal || symbol->get_type() == Symbol::Type::Epsilon)
+                if (symbol->get_type() != Symbol::Type::NonTerminal)
                     continue;
 
                 // 计算当前符号后面序列的First集
                 std::vector<const Symbol*> after_symbol(right_symbols.begin() + i + 1, right_symbols.end());
                 std::unordered_set<const Symbol*> first_of_sequence = compute_first_of_sequence(after_symbol);
                 // 添加非'/epsilon'符号
-                auto& follow_set = follow_set_map_[symbol->get_name()];
                 for (const Symbol* f : first_of_sequence)
                 {
-                    if (f == &epsilon_)
-                        continue;
-
-                    auto[it, success] = follow_set.insert(f);
-                    if (success)
-                        updated = true;
+                    if (f != &epsilon_)
+                    {
+                        auto[it, success] = follow_set_map_[symbol->get_name()].insert(f);
+                        if (success)
+                            updated = true;
+                    }
                 }
 
-                // symbol之后为'/epsilon'
-                if (first_of_sequence.count(&epsilon_) > 0)
+                // symbol之后存在'/epsilon'
+                auto it = first_of_sequence.find(&epsilon_);
+                if (it != first_of_sequence.end())
                 {
-                    auto& follow_set_of_left = follow_set_map_[left_symbol->get_name()];
+                    const std::unordered_set<const Symbol*>& follow_set_of_left = follow_set_map_[left_symbol->get_name()];
                     for (const Symbol* f : follow_set_of_left)
                     {
-                        auto[it, success] = follow_set.insert(f);
+                        auto [it, success] = follow_set_map_[symbol->get_name()].insert(f);
                         if (success)
                             updated = true;
                     }
@@ -226,43 +255,30 @@ void Grammar::show_first_follow() const
     std::cout << "First: " << '\n';
     for (const auto& [name, set] : first_set_map_)
     {
-        std::cout << "FIRST(" << name << ") = { ";
+        std::cout << "FIRST(" << name << ")" << " = " << " { ";
         for (const Symbol* s : set)
-        {
-            if (s == &epsilon_)
-                std::cout << "epsilon";
-            else
-                std::cout << s->get_name() << " ";
-        }
-        std::cout << "}\n";
+            std::cout << s->get_name() << " ";
+        std::cout << "}" << '\n';
     }
 
     std::cout << "\n==========\n";
     std::cout << "Follow: " << '\n';
     for (const auto& [name, set] : follow_set_map_)
     {
-        std::cout << "FOLLOW(" << name << ") = { ";
+        std::cout << "FOLLOW(" << name << ")" << " = " << " { ";
         for (const Symbol* s : set)
-        {
-            if (s == &end_)
-                std::cout << "$";
-            else
-                std::cout << s->get_name() << " ";
-        }
-        std::cout << "}\n";
+            std::cout << s->get_name() << " ";
+        std::cout << "}" << '\n';
     }
 }
 
 std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::vector<const Symbol*>& symbols)
 {
-    std::unordered_set<const Symbol*> result;
     if (symbols.empty())
-    {
-        result.insert(&epsilon_);
-        return result;
-    }
-
-    bool all_epsilon = true;
+        return { &epsilon_ };
+    
+    std::unordered_set<const Symbol*> result;
+    bool all_nullable = true;
     for (const Symbol* symbol : symbols)
     {
         // 添加First(symbol)的非'/epsilon'符号
@@ -276,11 +292,11 @@ std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::
         auto it = current_first_set.find(&epsilon_);
         if (it == current_first_set.end())
         {
-            all_epsilon = false;
+            all_nullable = false;
             break;
         }
     }
-    if (all_epsilon)
+    if (all_nullable)
         result.insert(&epsilon_);
 
     return result;
