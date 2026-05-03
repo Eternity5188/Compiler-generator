@@ -23,10 +23,19 @@ const Symbol* Grammar::add_terminal(const std::string_view name)
     auto [it, success] = terminals_.emplace(Symbol::Type::Terminal, name);
     return &(*it);
 }
-const Symbol* Grammar::add_terminal(const std::string_view name, uint32_t precedence, Associativity associativity)
+const Symbol* Grammar::add_operator(const std::string_view name, uint32_t precedence, Associativity associativity)
 {
     auto [it, success] = terminals_.emplace(Symbol::Type::Terminal, name, precedence, associativity);
     return &(*it);
+}
+bool Grammar::set_operator(const std::string_view name, uint32_t precedence, Associativity associativity)
+{
+    auto it = terminals_.find(Symbol{Symbol::Type::Terminal, name});
+    if (it == terminals_.end())
+        return false;
+
+    it->set_operator(precedence, associativity);
+    return true;
 }
 const Symbol* Grammar::add_non_terminal(const std::string_view name)
 {
@@ -194,17 +203,17 @@ void Grammar::show() const
 {
     std::cout << "\n==========\n";
     std::cout << "Start: " << '\n';
-    std::cout << start_symbol_->get_name() << '\n';
+    std::cout << start_symbol_->to_string() << '\n';
     
     std::cout << "\n==========\n";
     std::cout << "Terminal: " << '\n';
     for (const Symbol& terminal : terminals_)
-        std::cout << terminal.get_name() << '\n';
+        std::cout << terminal.to_string() << '\n';
     
     std::cout << "\n==========\n";
     std::cout << "Non-terminal: " << '\n';
     for (const Symbol& non_terminal : non_terminals_)
-        std::cout << non_terminal.get_name() << '\n';
+        std::cout << non_terminal.to_string() << '\n';
 
     std::cout << "\n==========\n";
     std::cout << "Production: " << '\n';
@@ -248,7 +257,10 @@ std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::
 {
     std::unordered_set<const Symbol*> result;
     if (symbols.empty())
+    {
+        result.insert(&epsilon_);
         return result;
+    }
 
     bool all_epsilon = true;
     for (const Symbol* symbol : symbols)

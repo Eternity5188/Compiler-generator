@@ -17,9 +17,40 @@ Symbol::Symbol(Type type, const std::string_view name, uint32_t precedence, Asso
     :type_{type}, name_{name}, is_operator_{true}, precedence_{precedence}, associativity_{associativity}
 {}
 
+const std::string Symbol::to_string() const
+{
+    std::string result;
+    std::string space{" "};
+    result += name_ + space;
+    if (is_operator_)
+    {
+        result += std::string{"operator"} + space;
+        result += std::to_string(precedence_) + space;
+        switch (associativity_)
+        {
+        case Associativity::Left:
+            result += std::string{"left"} + space; break;
+        case Associativity::Right:
+            result += std::string{"right"} + space; break;
+        case Associativity::None:
+            break;
+        default:
+            break;
+        }
+    }
+
+    return result;
+}
+
 void Symbol::set_name(const std::string_view name)
 {
     name_ = name;
+}
+void Symbol::set_operator(uint32_t precedence, Associativity associativity) const
+{
+    is_operator_ = true;
+    precedence_ = precedence;
+    associativity_ = associativity;
 }
 const Symbol::Type Symbol::get_type() const
 {

@@ -84,7 +84,7 @@ bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, 
 {
     std::string token;
     unsigned int precedence = 1;
-    for (std::size_t index = begin; index < size; ++index)
+    for (std::size_t index = begin; index < begin + size; ++index)
     {
         std::string type;
         std::istringstream str_in(lines[index]);
@@ -104,14 +104,14 @@ bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, 
         if (type == "%left")
         {
             while (str_in >> token)
-                grammar.add_terminal(token, precedence, Associativity::Left);
+                grammar.set_operator(token, precedence, Associativity::Left);
             ++precedence;
             continue;
         }
         if (type == "%right")
         {
             while (str_in >> token)
-                grammar.add_terminal(token, precedence, Associativity::Right);
+                grammar.set_operator(token, precedence, Associativity::Right);
             ++precedence;
             continue;
         }
@@ -127,67 +127,58 @@ bool SyntaxRuleParser::parse_declaration(const std::vector<std::string>& lines, 
 }
 bool SyntaxRuleParser::parse_rule(const std::vector<std::string>& lines, std::size_t begin, std::size_t size, Grammar& grammar)
 {
-    std::vector<std::string> tokens;
-    for (std::size_t index = begin; index < size; ++index)
-    {
-        std::istringstream str_in{lines[index]};
-        std::string token;
-        while (str_in >> token)
-            tokens.push_back(token);
-    }
-
-    unsigned int state = 0;
     std::string left_name;
     std::vector<std::string> right_names;
+    
+    unsigned int state = 0;
+    for (std::size_t index = begin; index < begin + size; ++index)
+    {   
+        std::istringstream str_in{lines[index]};
+        std::string token;
 
-
-    for (const std::string& token : tokens)
-    {
-        if (token == "%prec")
+        while (str_in >> token)
         {
-            continue;   // 暂时跳过优先级标记（如 UMINUS）
-        }
-
-        switch (state)
-        {
-        case 0:
-            if (token == ":" || token == ";")
+            switch (state)
             {
-                std::cerr << "Invalid production" << '\n';
-                return false;
-            }
-            left_name = token;
-            if (grammar.get_non_terminal(token) == nullptr)
-                grammar.add_non_terminal(token);
-            state = 1;
-            break;
-        case 1:
-            if (token != ":")
-            {
-                std::cerr << "Invalid production" << '\n';
-                return false;
-            }
-            state = 2;
-            break;
-        case 2:
-            if (token == "|")
-            {
-                grammar.add_production(left_name, right_names);
-                right_names.clear();
-            }
-            else if (token == ";")
-            {
-                grammar.add_production(left_name, right_names);
-                right_names.clear();
-                state = 0;
-            }
-            else
-            {
-                right_names.push_back(token);
-                if (grammar.get_symbol(token) == nullptr)
+            case 0:
+                if (token == ":" || token == ";")
+                {
+                    std::cerr << "Invalid production" << '\n';
+                    return false;
+                }
+                left_name = token;
+                if (grammar.get_non_terminal(token) == nullptr)
                     grammar.add_non_terminal(token);
+                state = 1;
+                break;
+            case 1:
+                if (token != ":")
+                {
+                    std::cerr << "Invalid production" << '\n';
+                    return false;
+                }
+                state = 2;
+                break;
+            case 2:
+                if (token == "|")
+                {
+                    grammar.add_production(left_name, right_names);
+                    right_names.clear();
+                }
+                else if (token == ";")
+                {
+                    grammar.add_production(left_name, right_names);
+                    right_names.clear();
+                    state = 0;
+                }
+                else
+                {
+                    right_names.push_back(token);
+                    if (grammar.get_symbol(token) == nullptr)
+                        grammar.add_non_terminal(token);
+                }
+                break;
             }
-            break;
         }
     }
 

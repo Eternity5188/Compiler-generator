@@ -19,7 +19,8 @@ public:
 
     bool set_start_symbol(const std::string_view name);
     const Symbol* add_terminal(const std::string_view name);
-    const Symbol* add_terminal(const std::string_view name, uint32_t precedence, Associativity associativity);
+    const Symbol* add_operator(const std::string_view name, uint32_t precedence, Associativity associativity);
+    bool set_operator(const std::string_view name, uint32_t precedence, Associativity associativity);
     const Symbol* add_non_terminal(const std::string_view name);
     bool add_production(const std::string_view left_name, const std::vector<std::string>& right_names);
     void compute_first_sets();

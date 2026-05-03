@@ -3,6 +3,7 @@
 %token IF ELSE WHILE FOR DO RETURN BREAK CONTINUE
 %token ADD SUB MUL DIV MOD                             /* +, -, *, /, % */
 %token INC DEC                                         /* ++, -- */
+%token UNARY_ADD UNARY_SUB                             /* +, - */
 %token ASSIGN                                          /* = */
 %token EQ NE LT LE GT GE                               /* ==, !=, <, <=, >, >= */
 %token AND OR NOT                                      /* &&, ||, ! */
@@ -19,7 +20,7 @@
 %left LT LE GT GE
 %left ADD SUB
 %left MUL DIV MOD
-%right NOT UMINUS
+%right NOT UNARY_ADD UNARY_SUB
 %right INC DEC
 %left INC DEC LBRACKET LPAREN
 
@@ -197,8 +198,8 @@ unary_expression
     : postfix_expression
     | INC unary_expression
     | DEC unary_expression
-    | ADD unary_expression        %prec UMINUS
-    | SUB unary_expression        %prec UMINUS
+    | UNARY_ADD unary_expression
+    | UNARY_SUB unary_expression
     | NOT unary_expression
     | AMPER unary_expression
     | MUL_TOKEN unary_expression

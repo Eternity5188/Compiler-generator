@@ -22,8 +22,10 @@ public:
     Symbol(Type type, const std::string_view name);
     Symbol(Type type, const std::string_view name, uint32_t precedence, Associativity associativity);
 
-    void set_name(const std::string_view name);
+    const std::string to_string() const;
 
+    void set_name(const std::string_view name);
+    void set_operator(uint32_t precedence, Associativity associativity) const;
     const Type get_type() const;
     const std::string get_name() const;
 
@@ -35,9 +37,9 @@ public:
 private:
     Type type_;
     std::string name_;
-    bool is_operator_;
-    uint32_t precedence_;
-    Associativity associativity_;
+    mutable bool is_operator_;
+    mutable uint32_t precedence_;
+    mutable Associativity associativity_;
 };
 
 namespace std {

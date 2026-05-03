@@ -9,7 +9,7 @@ int main()
 
     Grammar grammar;
     SyntaxRuleParser::parse(file, grammar);
-    grammar.show();
+    // grammar.show();
 
     grammar.compute_first_sets();
     grammar.compute_follow_sets();
