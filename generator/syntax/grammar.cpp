@@ -7,7 +7,6 @@
 
 Grammar::Grammar()
     :start_symbol_{nullptr}, current_production_id_{0}
-    ,epsilon_{Symbol::get_epsilon()}, end_{Symbol::get_end()}
 {}
 
 bool Grammar::set_start_symbol(const std::string_view name)
@@ -54,7 +53,7 @@ bool Grammar::add_production(const std::string_view left_name, const std::vector
     std::vector<const Symbol*> right_symbols;
     if (right_names.front() == "epsilon")
     {
-        right_symbols.push_back(&epsilon_);
+        right_symbols.push_back(&Symbol::get_epsilon());
         productions_.emplace_back(current_production_id_, left_symbol, right_symbols);
         ++current_production_id_;
         return true;
@@ -79,7 +78,7 @@ void Grammar::compute_first_sets()
 
     for (const Symbol& terminal : terminals_)
         first_set_map_[terminal.get_name()].insert(&terminal);
-    first_set_map_[epsilon_.get_name()].insert(&epsilon_);
+    first_set_map_[Symbol::get_epsilon().get_name()].insert(&Symbol::get_epsilon());
     for (const Symbol& non_terminal : non_terminals_)
         first_set_map_[non_terminal.get_name()] = {};
 
@@ -94,9 +93,9 @@ void Grammar::compute_first_sets()
             const std::vector<const Symbol*>& right_symbols = production.get_right();
 
             // A -> /epsilon
-            if (right_symbols.front() == &epsilon_)
+            if (right_symbols.front() == &Symbol::get_epsilon())
             {
-                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&epsilon_);
+                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&Symbol::get_epsilon());
                 if (success)
                     updated = true;
                 continue;
@@ -109,7 +108,7 @@ void Grammar::compute_first_sets()
                 const std::unordered_set<const Symbol*>& first_set = first_set_map_[symbol->get_name()];
                 for (const Symbol* f : first_set)
                 {
-                    if (f != &epsilon_)
+                    if (f != &Symbol::get_epsilon())
                     {
                         auto [it, success] = first_set_map_[left_symbol->get_name()].insert(f);
                         if (success)
@@ -117,7 +116,7 @@ void Grammar::compute_first_sets()
                     }
                 }
                 // First(symbol)不含/epsilon
-                auto it = first_set.find(&epsilon_);
+                auto it = first_set.find(&Symbol::get_epsilon());
                 if (it == first_set.end())
                 {
                     all_nullable = false;
@@ -127,7 +126,7 @@ void Grammar::compute_first_sets()
             // 添加/epsilon
             if (all_nullable)
             {
-                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&epsilon_);
+                auto [it, success] = first_set_map_[left_symbol->get_name()].insert(&Symbol::get_epsilon());
                 if (success)
                     updated = true;
             }
@@ -141,7 +140,7 @@ void Grammar::compute_follow_sets()
     for (const Symbol& non_terminal : non_terminals_)
         follow_set_map_[non_terminal.get_name()];
     if (start_symbol_)
-        follow_set_map_[start_symbol_->get_name()].insert(&end_);
+        follow_set_map_[start_symbol_->get_name()].insert(&Symbol::get_end());
 
     bool updated = true;
     while (updated)
@@ -166,7 +165,7 @@ void Grammar::compute_follow_sets()
                 // 添加非'/epsilon'符号
                 for (const Symbol* f : first_of_sequence)
                 {
-                    if (f != &epsilon_)
+                    if (f != &Symbol::get_epsilon())
                     {
                         auto[it, success] = follow_set_map_[symbol->get_name()].insert(f);
                         if (success)
@@ -175,7 +174,7 @@ void Grammar::compute_follow_sets()
                 }
 
                 // symbol之后存在'/epsilon'
-                auto it = first_of_sequence.find(&epsilon_);
+                auto it = first_of_sequence.find(&Symbol::get_epsilon());
                 if (it != first_of_sequence.end())
                 {
                     const std::unordered_set<const Symbol*>& follow_set_of_left = follow_set_map_[left_symbol->get_name()];
@@ -275,7 +274,7 @@ void Grammar::show_first_follow() const
 std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::vector<const Symbol*>& symbols)
 {
     if (symbols.empty())
-        return { &epsilon_ };
+        return { &Symbol::get_epsilon() };
     
     std::unordered_set<const Symbol*> result;
     bool all_nullable = true;
@@ -285,11 +284,11 @@ std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::
         auto& current_first_set = first_set_map_[symbol->get_name()];
         for (const Symbol* f : current_first_set)
         {
-            if (f != &epsilon_)
+            if (f != &Symbol::get_epsilon())
                 result.insert(f);
         }
         // 检查First(symbol)是否含有'/epsilon'
-        auto it = current_first_set.find(&epsilon_);
+        auto it = current_first_set.find(&Symbol::get_epsilon());
         if (it == current_first_set.end())
         {
             all_nullable = false;
@@ -297,7 +296,7 @@ std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::
         }
     }
     if (all_nullable)
-        result.insert(&epsilon_);
+        result.insert(&Symbol::get_epsilon());
 
     return result;
 }

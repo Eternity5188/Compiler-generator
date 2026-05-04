@@ -16,8 +16,8 @@ public:
     };
 
 public:
-    static const Symbol get_epsilon();
-    static const Symbol get_end();
+    static const Symbol& get_epsilon();
+    static const Symbol& get_end();
 
     Symbol(Type type, const std::string_view name);
     Symbol(Type type, const std::string_view name, uint32_t precedence, Associativity associativity);
@@ -35,6 +35,9 @@ public:
     }
 
 private:
+    static Symbol epsilon;
+    static Symbol end;
+
     Type type_;
     std::string name_;
     mutable bool is_operator_;

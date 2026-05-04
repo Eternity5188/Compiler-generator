@@ -1,13 +1,13 @@
 #include "symbol.h"
 
 
-const Symbol Symbol::get_epsilon()
+const Symbol& Symbol::get_epsilon()
 {
-    return Symbol{Symbol::Type::Epsilon, "epsilon"};
+    return epsilon;
 }
-const Symbol Symbol::get_end()
+const Symbol& Symbol::get_end()
 {
-    return Symbol{Symbol::Type::End, "$"};
+    return end;
 }
 
 Symbol::Symbol(Type type, const std::string_view name)
@@ -60,3 +60,6 @@ const std::string Symbol::get_name() const
 {
     return name_;
 }
+
+Symbol Symbol::epsilon{Symbol::Type::Epsilon, "epsilon"};
+Symbol Symbol::end{Symbol::Type::End, "$"};

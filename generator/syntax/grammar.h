@@ -45,6 +45,4 @@ private:
     std::vector<Production> productions_;
     std::unordered_map<std::string, std::unordered_set<const Symbol*>> first_set_map_;
     std::unordered_map<std::string, std::unordered_set<const Symbol*>> follow_set_map_;
-    Symbol epsilon_;
-    Symbol end_;
 };
