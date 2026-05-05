@@ -1,0 +1,12 @@
+%token id plus lparen rparen
+%start S
+
+S
+E
+T
+
+%%
+
+S : E ;
+E : E plus T | T ;
+T : id | lparen E rparen ;

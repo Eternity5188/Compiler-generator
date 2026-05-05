@@ -190,6 +190,10 @@ void Grammar::compute_follow_sets()
     }
 }
 
+const Symbol* Grammar::get_start_symbol() const
+{
+    return start_symbol_;
+}
 const Symbol* Grammar::get_terminal(const std::string_view name) const
 {
     auto it = terminals_.find(Symbol{Symbol::Type::Terminal, name});
@@ -207,6 +211,23 @@ const Symbol* Grammar::get_symbol(const std::string_view name) const
         return terminal;
 
     return get_non_terminal(name);
+}
+const uint32_t Grammar::get_current_production_id() const
+{
+    return current_production_id_;
+}
+const Production* Grammar::get_production(uint32_t id) const
+{
+    auto it = std::find_if(productions_.begin(), productions_.end(),
+        [id](const Production& production) {
+            return production.get_id() == id;
+        }
+    );
+    return it != productions_.end() ? &(*it) : nullptr;
+}
+const std::vector<Production>& Grammar::get_productions() const
+{
+    return productions_;
 }
 const std::unordered_set<const Symbol*> Grammar::get_first_set(const std::string_view name) const
 {
@@ -271,7 +292,7 @@ void Grammar::show_first_follow() const
     }
 }
 
-std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::vector<const Symbol*>& symbols)
+std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::vector<const Symbol*>& symbols) const
 {
     if (symbols.empty())
         return { &Symbol::get_epsilon() };
@@ -281,7 +302,9 @@ std::unordered_set<const Symbol*> Grammar::compute_first_of_sequence(const std::
     for (const Symbol* symbol : symbols)
     {
         // 添加First(symbol)的非'/epsilon'符号
-        auto& current_first_set = first_set_map_[symbol->get_name()];
+        auto first_set_it = first_set_map_.find(symbol->get_name());
+        auto& current_first_set = (*first_set_it).second;
+        
         for (const Symbol* f : current_first_set)
         {
             if (f != &Symbol::get_epsilon())

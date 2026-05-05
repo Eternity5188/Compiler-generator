@@ -11,10 +11,12 @@ class Symbol;
 class Production
 {
 public:
+    Production();
     Production(uint32_t id, const Symbol* left, const std::vector<const Symbol*>& right);
     
     const std::string to_string() const;
     
+    void reset(uint32_t id, const Symbol* left, const std::vector<const Symbol*>& right);
     const uint32_t get_id() const;
     const Symbol* get_left() const;
     const std::vector<const Symbol*>& get_right() const;

@@ -24,18 +24,20 @@ public:
     bool add_production(const std::string_view left_name, const std::vector<std::string>& right_names);
     void compute_first_sets();
     void compute_follow_sets();
+    std::unordered_set<const Symbol*> compute_first_of_sequence(const std::vector<const Symbol*>& symbols) const;
 
+    const Symbol* get_start_symbol() const;
     const Symbol* get_terminal(const std::string_view name) const;
     const Symbol* get_non_terminal(const std::string_view name) const;
     const Symbol* get_symbol(const std::string_view name) const;
+    const uint32_t get_current_production_id() const;
+    const Production* get_production(uint32_t id) const;
+    const std::vector<Production>& get_productions() const;
     const std::unordered_set<const Symbol*> get_first_set(const std::string_view name) const;
     const std::unordered_set<const Symbol*> get_follow_set(const std::string_view name) const;
 
     void show() const;
     void show_first_follow() const;
-
-private:
-    std::unordered_set<const Symbol*> compute_first_of_sequence(const std::vector<const Symbol*>& symbols);
 
 private:
     const Symbol* start_symbol_;
