@@ -10,15 +10,17 @@ int main()
 
     Grammar grammar;
     SyntaxRuleParser::parse(file, grammar);
-    grammar.show();
+    // grammar.show();
 
     grammar.compute_first_sets();
     grammar.compute_follow_sets();
-    grammar.show_first_follow();
+    // grammar.show_first_follow();
 
     LRParser parser{&grammar};
     parser.build_states();
     parser.show_states();
+    parser.construct_tables();
+    parser.show_tables();
 
     return 0;
 }

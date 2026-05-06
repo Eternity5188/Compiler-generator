@@ -4,7 +4,6 @@
 #include "production.h"
 #include "grammar.h"
 #include <algorithm>
-#include <stack>
 #include <iostream>
 
 
@@ -82,9 +81,57 @@ bool LRParser::construct_tables()
 
     for (const LRState& state : states_)
     {
+        uint32_t state_id = state.get_id();
 
+        for (const LRItem* item : state.get_items())
+        {
+            const Production* production = item->get_production();
+            uint32_t dot_pos = item->get_dot_pos();
+            const Symbol* lookahead = item->get_lookahead();
+
+            // 可规约项
+            if (dot_pos == production->get_right().size())
+            {
+                // 接受
+                if (production->get_left() == &start_symbol_)
+                {
+                    action_table_[state_id][lookahead] = Action{Action::Type::Accept, 0};
+                }
+                // 规约
+                else
+                {
+                    uint32_t production_id = production->get_id();
+                    action_table_[state_id][lookahead] = Action{Action::Type::Reduce, production_id};
+                }
+                continue;
+            }
+            // 可移进项
+            const Symbol* next_symbol = item->get_next_symbol();
+            int64_t target_state_id = -1;
+            for (const LRState& s : states_)
+            {
+                for (const LRItem* i : s.get_items())
+                {
+                    if (i->get_production() == production
+                        && i->get_dot_pos() == dot_pos + 1
+                        && i->get_lookahead() == lookahead)
+                    {
+                        target_state_id = s.get_id();
+                        break;
+                    }
+                }
+                if (target_state_id != -1)
+                    break;
+            }
+            if (target_state_id == -1)
+                continue;
+
+            if (next_symbol->get_type() == Symbol::Type::Terminal)
+                action_table_[state_id][next_symbol] = Action{Action::Type::Shift, static_cast<uint32_t>(target_state_id)};
+            else if (next_symbol->get_type() == Symbol::Type::NonTerminal)
+                goto_table_[state_id][next_symbol] = static_cast<uint32_t>(target_state_id);
+        }
     }
-
 
     return true;
 }
@@ -229,5 +276,27 @@ void LRParser::show_states() const
         std::unordered_set<const LRItem*> items = state.get_items();
         for (const LRItem* item : items)
             std::cout << "Item: " << item->to_string() << '\n';
+    }
+}
+void LRParser::show_tables() const
+{
+    std::cout << "\n==========\n";
+    std::cout << "Action table: " << '\n';
+    for (const auto& row : action_table_)
+    {
+        std::cout << "State: " << row.first << '\n';
+        for (const auto& cell : row.second)
+            std::cout << cell.first->get_name() << ": " << cell.second.to_string() << '\n';
+        std::cout << std::endl;
+    }
+
+    std::cout << "\n==========\n";
+    std::cout << "Goto table: " << '\n';
+    for (const auto& row : goto_table_)
+    {
+        std::cout << "State: " << row.first << '\n';
+        for (const auto& cell : row.second)
+            std::cout << cell.first->get_name() << ": " << cell.second << '\n';
+        std::cout << std::endl;
     }
 }

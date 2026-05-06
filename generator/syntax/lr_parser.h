@@ -22,6 +22,7 @@ public:
     bool build_states();
     bool construct_tables();
     void show_states() const;
+    void show_tables() const;
 
 private:
     LRState get_closure(const LRState& state);
