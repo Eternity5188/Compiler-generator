@@ -68,8 +68,6 @@ bool LRParser::build_states()
         }
     }
 
-    merge_states();
-
     return true;
 }
 bool LRParser::construct_tables()
@@ -134,6 +132,107 @@ bool LRParser::construct_tables()
     }
 
     return true;
+}
+bool LRParser::parse(const std::vector<std::string>& token_strings)
+{
+    std::vector<const Symbol*> tokens;
+    for (const std::string& s : token_strings)
+    {
+        const Symbol* symbol = grammar_->get_symbol(s);
+        if (symbol == nullptr || symbol->get_type() != Symbol::Type::Terminal)
+        {
+            std::cerr << "Unknown token: " << s << '\n';
+            return false;
+        }
+        tokens.push_back(symbol);
+    }
+    tokens.push_back(&Symbol::get_end());
+
+    std::vector<uint32_t> state_stack;
+    std::vector<const Symbol*> symbol_stack;
+    state_stack.push_back(0);
+    size_t lookahead_idx = 0;
+
+    while (true)
+    {
+        uint32_t cur_state = state_stack.back();
+        const Symbol* cur_token = tokens[lookahead_idx];
+
+        auto state_it = action_table_.find(cur_state);
+        if (state_it == action_table_.end())
+        {
+            std::cerr << "State " << cur_state << " has no action" << '\n';
+            return false;
+        }
+
+        auto act_it = state_it->second.find(cur_token);
+        if (act_it == state_it->second.end())
+        {
+            std::cerr << "State " << cur_state << " has no action for token " << cur_token->get_name() << '\n';
+            return false;
+        }
+
+        Action action = act_it->second;
+
+        switch (action.get_type())
+        {
+        case Action::Type::Accept:
+            {
+                std::cout << "Successful" << '\n';
+                return true;
+            }
+        case Action::Type::Shift:
+            {
+                uint32_t next_state = action.get_state_id();
+                symbol_stack.push_back(cur_token);
+                state_stack.push_back(next_state);
+                lookahead_idx++;
+
+                break;
+            }
+        case Action::Type::Reduce:
+            {
+                uint32_t prod_id = action.get_state_id();
+                const Production* prod = grammar_->get_production(prod_id); // 你必须实现
+                if (!prod)
+                {
+                    std::cerr << "Unknow production: " << prod_id << '\n';
+                    return false;
+                }
+
+                // 弹出右部长度个元素
+                size_t pop_len = prod->get_right().size();
+                for (size_t i = 0; i < pop_len; i++)
+                {
+                    state_stack.pop_back();
+                    symbol_stack.pop_back();
+                }
+                // GOTO 跳转
+                uint32_t top_state = state_stack.back();
+                const Symbol* left = prod->get_left();
+                auto goto_it = goto_table_.find(top_state);
+                if (goto_it == goto_table_.end() || goto_it->second.find(left) == goto_it->second.end())
+                {
+                    std::cerr << "State " << top_state << " has no goto for non-terminal " << left->get_name() << '\n';
+                    return false;
+                }
+
+                uint32_t next_state = goto_it->second[left];
+                symbol_stack.push_back(left);
+                state_stack.push_back(next_state);
+
+                break;
+            }
+        case Action::Type::Error:
+            {
+                std::cerr << "Failed" << '\n';
+                return false;
+            }
+        default:
+            break;
+        }
+    }
+    return false;
 }
 
 LRState LRParser::get_closure(const LRState& state)

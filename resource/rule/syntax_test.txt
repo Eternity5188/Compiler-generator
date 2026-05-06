@@ -1,12 +1,15 @@
-%token id plus lparen rparen
+%token id lparen rparen plus
 %start S
-
-S
-E
-T
 
 %%
 
-S : E ;
-E : E plus T | T ;
-T : id | lparen E rparen ;
+S : E
+;
+
+E : E plus T
+  | T
+;
+
+T : id
+  | lparen E rparen
+;

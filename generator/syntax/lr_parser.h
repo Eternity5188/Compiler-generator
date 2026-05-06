@@ -21,13 +21,14 @@ public:
 
     bool build_states();
     bool construct_tables();
+    void merge_states();
+    bool parse(const std::vector<std::string>& token_strings);
     void show_states() const;
     void show_tables() const;
 
 private:
     LRState get_closure(const LRState& state);
     LRState get_next_state(const LRState& state, const Symbol* next_symbol);
-    void merge_states();
 
 private:
     const Grammar* grammar_;
