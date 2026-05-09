@@ -18,6 +18,7 @@ bool LRParser::build_states()
 {
     items_.clear();
     states_.clear();
+    state_set_.clear();
 
     const Symbol* original_start_symbol = grammar_->get_start_symbol();
     if (original_start_symbol == nullptr)
@@ -31,10 +32,15 @@ bool LRParser::build_states()
 
     LRState start_state = get_closure(LRState{current_state_id_, std::unordered_set<const LRItem*>{start_item}});
     states_.push_back(start_state);
+    state_set_.insert(start_state);
     ++current_state_id_;
 
     for (std::size_t i = 0; i < states_.size(); ++i)
     {
+        if (i % 10 == 0) {
+            std::cout << "Processing state " << i << " of " << states_.size() << "...\n";
+        }
+        
         const LRState current_state = states_[i];
         // 记录可能输入符号
         const auto& items = current_state.get_items();
@@ -51,23 +57,17 @@ bool LRParser::build_states()
             // 添加状态
             if (next_state.get_items().empty())
                 continue;
-            bool existed = false;
-            for (const LRState& state : states_)
-            {
-                if (state.get_items() == next_state.get_items())
-                {
-                    existed = true;
-                    break;
-                }
-            }
-            if (existed == false)
+            // 使用unordered_set快速查找
+            if (state_set_.find(next_state) == state_set_.end())
             {
                 states_.push_back(next_state);
+                state_set_.insert(next_state);
                 ++current_state_id_;
             }
         }
     }
 
+    std::cout << "Total states created: " << states_.size() << "\n";
     return true;
 }
 bool LRParser::construct_tables()
@@ -76,6 +76,8 @@ bool LRParser::construct_tables()
         return true;
     action_table_.clear();
     goto_table_.clear();
+
+    std::cout << "Starting construct_tables with " << states_.size() << " states\n";
 
     for (const LRState& state : states_)
     {
@@ -90,48 +92,152 @@ bool LRParser::construct_tables()
             // 可规约项
             if (dot_pos == production->get_right().size())
             {
-                // 接受
+                Action action;
                 if (production->get_left() == &start_symbol_)
                 {
-                    action_table_[state_id][lookahead] = Action{Action::Type::Accept, 0};
+                    action = Action{Action::Type::Accept, 0};
                 }
-                // 规约
                 else
                 {
-                    uint32_t production_id = production->get_id();
-                    action_table_[state_id][lookahead] = Action{Action::Type::Reduce, production_id};
+                    action = Action{Action::Type::Reduce, production->get_id()};
+                }
+
+                auto& row = action_table_[state_id];
+                auto it = row.find(lookahead);
+                if (it == row.end())
+                {
+                    row[lookahead] = action;
+                }
+                else
+                {
+                    it->second = resolve_action_conflict(it->second, action, lookahead);
                 }
                 continue;
             }
-            // 可移进项
+
             const Symbol* next_symbol = item->get_next_symbol();
-            int64_t target_state_id = -1;
-            for (const LRState& s : states_)
-            {
-                for (const LRItem* i : s.get_items())
-                {
-                    if (i->get_production() == production
-                        && i->get_dot_pos() == dot_pos + 1
-                        && i->get_lookahead() == lookahead)
-                    {
-                        target_state_id = s.get_id();
-                        break;
-                    }
-                }
-                if (target_state_id != -1)
-                    break;
-            }
-            if (target_state_id == -1)
+            LRState next_state = get_next_state(state, next_symbol);
+            if (next_state.get_items().empty())
                 continue;
 
+            int32_t target_state_index = find_state_by_items(next_state.get_items());
+            if (target_state_index < 0)
+                continue;
+            uint32_t target_state_id = static_cast<uint32_t>(target_state_index);
+
             if (next_symbol->get_type() == Symbol::Type::Terminal)
-                action_table_[state_id][next_symbol] = Action{Action::Type::Shift, static_cast<uint32_t>(target_state_id)};
+            {
+                Action action{Action::Type::Shift, target_state_id};
+                auto& row = action_table_[state_id];
+                auto it = row.find(next_symbol);
+                if (it == row.end())
+                {
+                    row[next_symbol] = action;
+                }
+                else
+                {
+                    it->second = resolve_action_conflict(it->second, action, next_symbol);
+                }
+            }
             else if (next_symbol->get_type() == Symbol::Type::NonTerminal)
-                goto_table_[state_id][next_symbol] = static_cast<uint32_t>(target_state_id);
+            {
+                goto_table_[state_id][next_symbol] = target_state_id;
+            }
         }
     }
 
+    std::cout << "construct_tables completed\n";
     return true;
+}
+
+const Symbol* LRParser::get_production_precedence_symbol(const Production* production) const
+{
+    if (production == nullptr)
+        return nullptr;
+
+    const auto& right_symbols = production->get_right();
+    for (auto it = right_symbols.rbegin(); it != right_symbols.rend(); ++it)
+    {
+        const Symbol* symbol = *it;
+        if (symbol && symbol->get_type() == Symbol::Type::Terminal && symbol->is_operator())
+            return symbol;
+    }
+    return nullptr;
+}
+
+int32_t LRParser::find_state_by_items(const std::unordered_set<const LRItem*>& items) const
+{
+    for (const LRState& state : states_)
+    {
+        if (state.get_items() == items)
+            return static_cast<int32_t>(state.get_id());
+    }
+    return -1;
+}
+
+Action LRParser::resolve_action_conflict(const Action& existing, const Action& incoming, const Symbol* terminal) const
+{
+    if (existing.get_type() == incoming.get_type())
+        return existing;
+
+    if (existing.get_type() == Action::Type::Error)
+        return incoming;
+    if (incoming.get_type() == Action::Type::Error)
+        return existing;
+
+    if (existing.get_type() == Action::Type::Accept || incoming.get_type() == Action::Type::Accept)
+        return existing.get_type() == Action::Type::Accept ? existing : incoming;
+
+    const Action* shift_action = nullptr;
+    const Action* reduce_action = nullptr;
+    if (existing.get_type() == Action::Type::Shift)
+        shift_action = &existing;
+    else if (existing.get_type() == Action::Type::Reduce)
+        reduce_action = &existing;
+
+    if (incoming.get_type() == Action::Type::Shift)
+        shift_action = &incoming;
+    else if (incoming.get_type() == Action::Type::Reduce)
+        reduce_action = &incoming;
+
+    if (shift_action && reduce_action)
+    {
+        uint32_t shift_prec = terminal ? terminal->get_precedence() : 0;
+        const Production* reduce_prod = grammar_->get_production(reduce_action->get_state_id());
+        const Symbol* reduce_symbol = get_production_precedence_symbol(reduce_prod);
+        uint32_t reduce_prec = reduce_symbol ? reduce_symbol->get_precedence() : 0;
+        Associativity assoc = terminal ? terminal->get_associativity() : Associativity::None;
+
+        if (shift_prec > reduce_prec)
+            return *shift_action;
+        if (shift_prec < reduce_prec)
+            return *reduce_action;
+
+        if (assoc == Associativity::Left)
+            return *reduce_action;
+        if (assoc == Associativity::Right)
+            return *shift_action;
+
+        return existing;
+    }
+
+    if (existing.get_type() == Action::Type::Reduce && incoming.get_type() == Action::Type::Reduce)
+    {
+        const Production* prod_existing = grammar_->get_production(existing.get_state_id());
+        const Production* prod_incoming = grammar_->get_production(incoming.get_state_id());
+        const Symbol* symbol_existing = get_production_precedence_symbol(prod_existing);
+        const Symbol* symbol_incoming = get_production_precedence_symbol(prod_incoming);
+        uint32_t prec_existing = symbol_existing ? symbol_existing->get_precedence() : 0;
+        uint32_t prec_incoming = symbol_incoming ? symbol_incoming->get_precedence() : 0;
+
+        if (prec_existing > prec_incoming)
+            return existing;
+        if (prec_incoming > prec_existing)
+            return incoming;
+        return existing;
+    }
+
+    return existing;
 }
 bool LRParser::parse(const std::vector<std::string>& token_strings)
 {
@@ -240,9 +346,18 @@ LRState LRParser::get_closure(const LRState& state)
     LRState result = state;
 
     bool updated = true;
+    int iteration_count = 0;
     while (updated)
     {
         updated = false;
+        iteration_count++;
+        if (iteration_count > 1000) {
+            std::cout << "Warning: get_closure() iteration count exceeded 1000, possible infinite loop\n";
+            break;
+        }
+        if (iteration_count % 100 == 0) {
+            std::cout << "  get_closure iteration " << iteration_count << ", items: " << result.get_items().size() << "\n";
+        }
 
         const std::unordered_set<const LRItem*> items{result.get_items().begin(), result.get_items().end()};
         for (const LRItem* item : items)
@@ -377,6 +492,7 @@ void LRParser::show_states() const
             std::cout << "Item: " << item->to_string() << '\n';
     }
 }
+
 void LRParser::show_tables() const
 {
     std::cout << "\n==========\n";

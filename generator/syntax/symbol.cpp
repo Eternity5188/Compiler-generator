@@ -60,6 +60,18 @@ const std::string Symbol::get_name() const
 {
     return name_;
 }
+bool Symbol::is_operator() const
+{
+    return is_operator_;
+}
+uint32_t Symbol::get_precedence() const
+{
+    return precedence_;
+}
+Associativity Symbol::get_associativity() const
+{
+    return associativity_;
+}
 
 Symbol Symbol::epsilon{Symbol::Type::Epsilon, "epsilon"};
 Symbol Symbol::end{Symbol::Type::End, "$"};

@@ -28,6 +28,9 @@ public:
     void set_operator(uint32_t precedence, Associativity associativity) const;
     const Type get_type() const;
     const std::string get_name() const;
+    bool is_operator() const;
+    uint32_t get_precedence() const;
+    Associativity get_associativity() const;
 
     bool operator==(const Symbol& other) const
     {

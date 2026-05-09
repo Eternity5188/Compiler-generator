@@ -7,7 +7,7 @@
 
 int main()
 {
-    std::filesystem::path file{"./resource/rule/syntax_test.txt"};
+    std::filesystem::path file{"./resource/rule/syntax_rule.txt"};
 
     Grammar grammar;
     SyntaxRuleParser::parse(file, grammar);
@@ -19,24 +19,17 @@ int main()
 
     LRParser parser{&grammar};
     parser.build_states();
-    parser.show_states();
-    parser.merge_states();
+    // parser.show_states();
+    // parser.merge_states();
     parser.construct_tables();
-    parser.show_tables();
+    // parser.show_tables();
 
-    
     std::vector<std::vector<std::string>> tokens_list {
-        {"id"},
-        {"id", "plus", "id"},
-        {"lparen", "id", "rparen"},
-        {"id", "plus", "id", "plus", "id"},
-        {"lparen", "id", "plus", "id", "rparen"},
-        {"lparen", "lparen", "id", "rparen", "rparen"},
-        {"id", "plus", "lparen", "id", "plus", "id", "rparen"},
-
-        {"lparen", "id"},
-        {"id", "plus"},
-        {"id", "rparen"}
+        {"INT", "IDENTIFIER", "SEMICOLON"},
+        {"INT", "IDENTIFIER", "LPAREN", "RPAREN", "LBRACE", "RBRACE"},
+        {"INT", "IDENTIFIER", "LPAREN", "RPAREN", "LBRACE", "RETURN", "NUMBER", "SEMICOLON", "RBRACE"},
+        {"INT", "IDENTIFIER", "LPAREN", "RPAREN", "LBRACE", "IDENTIFIER", "ASSIGN", "NUMBER", "SEMICOLON", "RBRACE"},
+        {"INT", "IDENTIFIER", "LPAREN", "RPAREN", "LBRACE", "IF", "LPAREN", "IDENTIFIER", "RPAREN", "RETURN", "NUMBER", "SEMICOLON", "RBRACE"},
     };
 
     int counter = 0;
@@ -44,6 +37,7 @@ int main()
     {
         std::cout << counter << ": ";
         std::cout << (parser.parse(tokens) ? "Passed" : "Failed") << '\n';
+        ++counter;
     }
 
     return 0;

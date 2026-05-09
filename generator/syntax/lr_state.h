@@ -31,7 +31,12 @@ namespace std{
     {
         size_t operator()(const LRState& state) const
         {
-            return hash<uint32_t>{}(state.get_id());
+            size_t hash_value = 0;
+            for (const LRItem* item : state.get_items())
+            {
+                hash_value ^= hash<const LRItem*>{}(item);
+            }
+            return hash_value;
         }
     };
 }

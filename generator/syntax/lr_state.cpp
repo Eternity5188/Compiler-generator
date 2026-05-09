@@ -26,5 +26,5 @@ const std::unordered_set<const LRItem*>& LRState::get_items() const
 
 bool LRState::operator==(const LRState& other) const
 {
-    return id_ == other.id_;
+    return items_ == other.items_;
 }
