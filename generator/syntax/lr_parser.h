@@ -6,12 +6,33 @@
 #include "lr_item.h"
 #include "lr_state.h"
 #include "action.h"
+#include "ast_tree.h"
 #include <cstdint>
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
 
+namespace export_space
+{
+    // 文法结构（仅用于导出）
+    struct Production
+    {
+        std::string left;
+        std::vector<std::string> right;
+    };
 
+    // ACTION/GOTO 表项
+    struct TableEntry
+    {
+        uint32_t state;
+        std::string symbol;
+        std::string type;
+        uint32_t next_state;
+    };
+}
+
+
+struct Token;
 class Grammar;
 
 class LRParser
@@ -19,10 +40,16 @@ class LRParser
 public:
     LRParser(const Grammar* grammar);
 
+    std::vector<export_space::Production> get_export_grammar();
+    std::vector<export_space::TableEntry> get_export_action_table();
+    std::vector<export_space::TableEntry> get_export_goto_table();
+    const ASTNode* get_ast_root() const;
+
     bool build_states();
     bool construct_tables();
     void merge_states();
-    bool parse(const std::vector<std::string>& token_strings);
+    bool parse(const std::vector<Token>& token_strings);
+    const ASTTree& get_ast_tree() const;
     void show_states() const;
     void show_tables() const;
 
@@ -42,4 +69,6 @@ private:
     std::vector<LRState> states_;
     std::unordered_map<uint32_t, std::unordered_map<const Symbol*, Action>> action_table_;
     std::unordered_map<uint32_t, std::unordered_map<const Symbol*, uint32_t>> goto_table_;
+    ASTTree ast_tree_;
+    std::vector<const ASTNode*> ast_nodes_stack_;
 };

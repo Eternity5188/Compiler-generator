@@ -1,6 +1,7 @@
 #include "lr_parser.h"
 
 
+#include "token.h"
 #include "production.h"
 #include "grammar.h"
 #include <algorithm>
@@ -13,6 +14,75 @@ LRParser::LRParser(const Grammar* grammar)
     ,start_production_{}
     ,current_state_id_{0}
 {}
+
+std::vector<export_space::Production> LRParser::get_export_grammar()
+{
+    std::vector<export_space::Production> export_grammar;
+    const auto& productions = grammar_->get_productions();
+    for (const Production& prod : productions)
+    {
+        export_space::Production export_prod;
+        export_prod.left = prod.get_left()->get_name();
+        for (const Symbol* sym : prod.get_right())
+            export_prod.right.push_back(sym->get_name());
+        export_grammar.push_back(export_prod);
+    }
+    return export_grammar;
+}
+std::vector<export_space::TableEntry> LRParser::get_export_action_table()
+{
+    std::vector<export_space::TableEntry> export_action_table;
+    for (const auto& row : action_table_)
+    {
+        uint32_t state_id = row.first;
+        for (const auto& [symbol, action] : row.second)
+        {
+            export_space::TableEntry entry;
+            entry.state = state_id;
+            entry.symbol = symbol->get_name();
+            switch (action.get_type())
+            {
+            case Action::Type::Shift:
+                entry.type = "Shift";
+                break;
+            case Action::Type::Reduce:
+                entry.type = "Reduce";
+                break;
+            case Action::Type::Accept:
+                entry.type = "Accept";
+                break;
+            default:
+                entry.type = "Error";
+                break;
+            }
+            entry.next_state = action.get_arg();
+            export_action_table.push_back(entry);
+        }
+    }
+    return export_action_table;
+}
+std::vector<export_space::TableEntry> LRParser::get_export_goto_table()
+{
+    std::vector<export_space::TableEntry> export_goto_table;
+    for (const auto& row : goto_table_)
+    {
+        uint32_t state_id = row.first;
+        for (const auto& [symbol, next_state] : row.second)
+        {
+            export_space::TableEntry entry;
+            entry.state = state_id;
+            entry.symbol = symbol->get_name();
+            entry.type = "Goto";
+            entry.next_state = next_state;
+            export_goto_table.push_back(entry);
+        }
+    }
+    return export_goto_table;
+}
+const ASTNode* LRParser::get_ast_root() const
+{
+    return ast_tree_.get_root();
+}
 
 bool LRParser::build_states()
 {
@@ -137,30 +207,36 @@ bool LRParser::construct_tables()
     std::cout << "Construct_tables completed\n";
     return true;
 }
-bool LRParser::parse(const std::vector<std::string>& token_strings)
+bool LRParser::parse(const std::vector<Token>& tokens)
 {
-    std::vector<const Symbol*> tokens;
-    for (const std::string& s : token_strings)
+    std::vector<const Symbol*> symbols;
+    for (const Token& token : tokens)
     {
-        const Symbol* symbol = grammar_->get_symbol(s);
+        const Symbol* symbol = grammar_->get_symbol(token.type);
         if (symbol == nullptr || symbol->get_type() != Symbol::Type::Terminal)
         {
-            std::cerr << "Unknown token: " << s << '\n';
+            std::cerr << "Unknown token: " << token.type << '\n';
             return false;
         }
-        tokens.push_back(symbol);
+        symbols.push_back(symbol);
     }
-    tokens.push_back(&Symbol::get_end());
+    symbols.push_back(&Symbol::get_end());
 
     std::vector<uint32_t> state_stack;
     std::vector<const Symbol*> symbol_stack;
+    std::vector<std::string> value_stack;
     state_stack.push_back(0);
-    size_t lookahead_idx = 0;
+    value_stack.push_back("");
 
+    ast_tree_.clear();
+    ast_nodes_stack_.clear();
+    
+    size_t lookahead_idx = 0;
     while (true)
     {
         uint32_t cur_state = state_stack.back();
-        const Symbol* cur_token = tokens[lookahead_idx];
+        const Symbol* cur_token = symbols[lookahead_idx];
+        std::string cur_value = cur_token == &Symbol::get_end() ? "" : tokens[lookahead_idx].value;
 
         auto state_it = action_table_.find(cur_state);
         if (state_it == action_table_.end())
@@ -183,15 +259,26 @@ bool LRParser::parse(const std::vector<std::string>& token_strings)
         case Action::Type::Accept:
             {
                 std::cout << "Successful" << '\n';
+
+                if (ast_nodes_stack_.size() == 1)
+                {
+                    const ASTNode* root = ast_nodes_stack_.back();
+                    ast_tree_.set_root(root);
+                }
+
                 return true;
             }
         case Action::Type::Shift:
             {
                 uint32_t next_state = action.get_arg();
-                symbol_stack.push_back(cur_token);
                 state_stack.push_back(next_state);
-                lookahead_idx++;
+                symbol_stack.push_back(cur_token);
+                value_stack.push_back(cur_value);
 
+                const ASTNode* node = ast_tree_.add_node(cur_token->get_name(), cur_value);
+                ast_nodes_stack_.push_back(node);
+
+                lookahead_idx++;
                 break;
             }
         case Action::Type::Reduce:
@@ -206,10 +293,17 @@ bool LRParser::parse(const std::vector<std::string>& token_strings)
 
                 // 弹出右部长度个元素
                 size_t pop_len = prod->get_right().size();
+                std::vector<const ASTNode*> children;
+                for (size_t i = 0; i < pop_len; i++)
+                {
+                    children.push_back(ast_nodes_stack_.back());
+                    ast_nodes_stack_.pop_back();
+                }
                 for (size_t i = 0; i < pop_len; i++)
                 {
                     state_stack.pop_back();
                     symbol_stack.pop_back();
+                    value_stack.pop_back();
                 }
                 // GOTO 跳转
                 uint32_t top_state = state_stack.back();
@@ -224,7 +318,14 @@ bool LRParser::parse(const std::vector<std::string>& token_strings)
                 uint32_t next_state = goto_it->second[left];
                 symbol_stack.push_back(left);
                 state_stack.push_back(next_state);
+                value_stack.push_back("");
 
+                const ASTNode* parent = ast_tree_.add_node(left->get_name());
+                std::reverse(children.begin(), children.end());
+                for (const ASTNode* child : children)
+                    parent->add_child(child);
+
+                ast_nodes_stack_.push_back(parent);
                 break;
             }
         case Action::Type::Error:
@@ -237,6 +338,10 @@ bool LRParser::parse(const std::vector<std::string>& token_strings)
         }
     }
     return false;
+}
+const ASTTree& LRParser::get_ast_tree() const
+{
+    return ast_tree_;
 }
 
 LRState LRParser::get_closure(const LRState& state)
