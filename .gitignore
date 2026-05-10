@@ -2,6 +2,8 @@
 build/
 # Target
 target/
+# Generated sources
+resource/source/
 # temp
 temp/
 
