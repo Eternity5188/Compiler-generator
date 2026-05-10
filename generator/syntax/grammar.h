@@ -22,6 +22,7 @@ public:
     bool set_operator(const std::string_view name, uint32_t precedence, Associativity associativity);
     const Symbol* add_non_terminal(const std::string_view name);
     bool add_production(const std::string_view left_name, const std::vector<std::string>& right_names);
+    
     void compute_first_sets();
     void compute_follow_sets();
     std::unordered_set<const Symbol*> compute_first_of_sequence(const std::vector<const Symbol*>& symbols) const;

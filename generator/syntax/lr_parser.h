@@ -30,8 +30,8 @@ private:
     LRState get_closure(const LRState& state);
     LRState get_next_state(const LRState& state, const Symbol* next_symbol);
     int32_t find_state_by_items(const std::unordered_set<const LRItem*>& items) const;
-    const Symbol* get_production_precedence_symbol(const Production* production) const;
     Action resolve_action_conflict(const Action& existing, const Action& incoming, const Symbol* terminal) const;
+    const Symbol* get_production_precedence_symbol(const Production* production) const;
 
 private:
     const Grammar* grammar_;
@@ -40,7 +40,6 @@ private:
     std::unordered_set<LRItem> items_;
     uint32_t current_state_id_;
     std::vector<LRState> states_;
-    std::unordered_set<LRState> state_set_;  // 用于快速查找已存在的状态
     std::unordered_map<uint32_t, std::unordered_map<const Symbol*, Action>> action_table_;
     std::unordered_map<uint32_t, std::unordered_map<const Symbol*, uint32_t>> goto_table_;
 };

@@ -11,7 +11,7 @@ class LRItem;
 class LRState
 {
 public:
-    LRState(uint32_t id, const std::unordered_set<const LRItem*> items);
+    LRState(uint32_t id, const std::unordered_set<const LRItem*>& items);
 
     const LRItem* add_item(const LRItem* item);
 
@@ -20,6 +20,7 @@ public:
     const std::unordered_set<const LRItem*>& get_items() const;
 
     bool operator==(const LRState& other) const;
+
 private:
     uint32_t id_;
     std::unordered_set<const LRItem*> items_;
@@ -31,12 +32,7 @@ namespace std{
     {
         size_t operator()(const LRState& state) const
         {
-            size_t hash_value = 0;
-            for (const LRItem* item : state.get_items())
-            {
-                hash_value ^= hash<const LRItem*>{}(item);
-            }
-            return hash_value;
+            return hash<uint32_t>{}(state.get_id());
         }
     };
 }

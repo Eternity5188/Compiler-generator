@@ -20,15 +20,18 @@ public:
     const uint32_t get_id() const;
     const Symbol* get_left() const;
     const std::vector<const Symbol*>& get_right() const;
+    const Symbol* get_precedence_symbol() const;
+    
+    bool operator==(const Production& other) const;
 
-    bool operator==(const Production& other) const
-    {
-        return id_ == other.id_;
-    }
+private:
+    void compute_precedence_symbol();
+
 private:
     uint32_t id_;
     const Symbol* left_;
     std::vector<const Symbol*> right_;
+    const Symbol* precedence_symbol_;
 };
 
 namespace std {

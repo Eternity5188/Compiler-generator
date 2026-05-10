@@ -2,10 +2,10 @@
 
 
 Action::Action()
-    :type_{Type::Error}, state_id_{0}
+    :type_{Type::Error}, arg_{0}
 {}
-Action::Action(Type type, uint32_t state_id)
-    :type_{type}, state_id_{state_id}
+Action::Action(Type type, uint32_t arg)
+    :type_{type}, arg_{arg}
 {}
 
 const std::string Action::to_string() const
@@ -27,7 +27,7 @@ const std::string Action::to_string() const
         result += "Error" + space;
         break;
     }
-    result += std::to_string(state_id_) + space;
+    result += std::to_string(arg_) + space;
     return result;
 }
 
@@ -35,7 +35,7 @@ const Action::Type Action::get_type() const
 {
     return type_;
 }
-const uint32_t Action::get_state_id() const
+const uint32_t Action::get_arg() const
 {
-    return state_id_;
+    return arg_;
 }

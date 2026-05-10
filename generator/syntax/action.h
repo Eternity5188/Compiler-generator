@@ -14,14 +14,14 @@ public:
     };
 public:
     Action();
-    Action(Type type, uint32_t state_id);
+    Action(Type type, uint32_t arg);
 
     const std::string to_string() const;
 
     const Type get_type() const;
-    const uint32_t get_state_id() const;
+    const uint32_t get_arg() const;
 
 private:
     Type type_;
-    uint32_t state_id_;
+    uint32_t arg_;
 };
