@@ -9,10 +9,6 @@
 #include <string>
 
 
-void generate_ast_recursive(std::ofstream& cpp, const ASTNode* node, int& node_id);
-void generate_ast_tree(std::ofstream& cpp, const ASTNode* root);
-
-
 int main()
 {
     std::filesystem::path rule_file{"./resource/rule/syntax_rule.txt"};
@@ -32,9 +28,10 @@ int main()
     std::ofstream h{h_file};
     std::ofstream cpp{cpp_file};
 
-    // 生成.h文件
+    // generate .h file
     h << R"(
 #pragma once
+#include "token.h"
 #include <cstdint>
 #include <string>
 #include <filesystem>
@@ -42,11 +39,6 @@ int main()
 )";
 
     h << R"(
-struct Token
-{
-    std::string type;
-    std::string value;
-};
 struct Production
 {
     std::string left;
@@ -91,7 +83,7 @@ private:
 };
 )";
 
-    // 生成.cpp文件
+    // generate .cpp file
     cpp << R"(
 #include "syntax_parser.h"
 #include <stack>
@@ -156,7 +148,7 @@ bool SyntaxParser::parse(const std::vector<Token>& tokens)
             cur_sym = "$";
 
 
-        // 查找 Action（完全用你的 action_table）
+        // search Action
         const TableEntry* action = nullptr;
         for (const auto& entry : action_table)
         {
@@ -228,7 +220,7 @@ bool SyntaxParser::parse(const std::vector<Token>& tokens)
             state_stack.push(goto_next);
         }
 
-        // ====================== Accept（你的表里一定有！）
+        // ====================== Accept
         else if (action->type == "Accept")
         {
             ast_tree = node_stack.top();

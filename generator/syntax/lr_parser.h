@@ -14,7 +14,7 @@
 
 namespace export_space
 {
-    // 文法结构（仅用于导出）
+    // 文法结构
     struct Production
     {
         std::string left;
