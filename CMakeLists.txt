@@ -2,11 +2,17 @@ cmake_minimum_required(VERSION 3.21)
 
 project(compiler_generator)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 set(GNERATOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generator)
 set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/resource/source)
 set(ANALYZER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/analyzer)
 set(TARGET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/target)
+
+file(MAKE_DIRECTORY ${GENERATED_DIR})
 
 add_subdirectory(${GNERATOR_DIR} ${TARGET_DIR}/generator)
 add_subdirectory(${ANALYZER_DIR} ${TARGET_DIR}/analyzer)

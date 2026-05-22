@@ -9,7 +9,7 @@ list(FILTER ANALYZER_SOURCES EXCLUDE REGEX ".*/ir/ir_selftest\\.cpp$")
 add_executable(analyzer ${ANALYZER_SOURCES} ${COMMON_SOURCES} ${GENERATED_SOURCES})
 
 if (MSVC)
-    target_compile_options(analyzer PRIVATE /bigobj)
+    target_compile_options(analyzer PRIVATE /bigobj /utf-8)
     target_link_options(analyzer PRIVATE /STACK:8388608)
 endif()
 
