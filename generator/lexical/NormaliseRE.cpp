@@ -1,6 +1,12 @@
 #include "NormaliseRE.h"
 
+static constexpr bool kNormalizeDebug = false;
+
+
 static void PrintNormalizedRE(const unordered_map<string, string>& mp, const vector<Rule>& vRules) {
+	if (!kNormalizeDebug)
+		return;
+
 	cout << "========= [Normalized Definitions] =========" << endl;
 	for (const auto& def : mp) {
 		cout << def.first << " => " << def.second << endl;
@@ -30,7 +36,7 @@ void NormalizeRE::HandleBrace(string& s, unordered_map<string, string>& mp)
 			brace = true;
 			continue;
 		}
-		// ����/}��ǰ�汻ȥ����ʱת�����
+		// ����/}��ǰ�汻ȥ����ʱת�����?
 		else if (s[i] == '}' && (i > 0 && s[i - 1] != '\\'))
 		{
 			brace = false;
@@ -70,7 +76,7 @@ void NormalizeRE::HandleLexRC(string& s)
 			case 'v': ans += '\v'; break;
 			case 'f': ans += '\f'; break;
 			case '\\': ans += '\\'; break;
-			default: ans += c; break;  // ����δ֪ת������� \x��
+			default: ans += c; break;  // ����δ֪ת�������?\x��
 			}
 			flag = false;
 		}
@@ -100,7 +106,7 @@ void NormalizeRE::getSet(unordered_set<char>& charSet, string& s, bool flag)
 		{
 			char first = s[i - 1];
 			char last = s[i + 1];
-			// 按 ASCII 顺序添加从 first 到 last 的所有字符
+			// �?ASCII 顺序添加�?first �?last 的所有字�?
 			for (char ch = first; ch <= last; ++ch) {
 				newset.insert(ch);
 			}
@@ -113,25 +119,10 @@ void NormalizeRE::getSet(unordered_set<char>& charSet, string& s, bool flag)
 	//����flag���ַ�����newset
 	if (flag)
 	{
-		//��^
-		// 检查补集是否包含大部分字符，如果是，使用 . 代替
 		string common_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#%'()*+,-./:;<=>?[\\]^_`{|}~ &";
-		int common_count = 0;
 		for (char ch : common_chars) {
-			if (newset.find(ch) == newset.end()) 
-				common_count++;
-		}
-		
-		// 如果补集包含大部分常见字符，使用 . 代替
-		if (common_count > common_chars.size() * 0.8) {
-			charSet.clear();
-			charSet.insert('.');
-		}
-		else {
-			for (char ch : common_chars) {
-				if (newset.find(ch) == newset.end()) 
-					charSet.insert(ch);
-			}
+			if (newset.find(ch) == newset.end())
+				charSet.insert(ch);
 		}
 	}
 	else
@@ -155,7 +146,8 @@ void NormalizeRE::HandleBrackets(string& s)
 		//��ת�� \]
 		else if (s[i] == ']' && (i > 0 && s[i - 1] != '\\'))
 		{
-			cout << "[replace_item] : " << replace_item << endl;
+			if (kNormalizeDebug)
+				cout << "[replace_item] : " << replace_item << endl;
 			braket = false;
 			//�����滻
 			unordered_set<char> lcharset;//�ֲ�charset
@@ -189,6 +181,14 @@ void NormalizeRE::HandleBrackets(string& s)
 
 
 // ��ȥ�������������е������ַ�����ת��
+static bool IsEscaped(const string& s, int index)
+{
+	int slash_count = 0;
+	for (int i = index - 1; i >= 0 && s[i] == '\\'; --i)
+		slash_count++;
+	return slash_count % 2 == 1;
+}
+
 void NormalizeRE::HandleQuote(string& s)
 {
 	bool quote = false;
@@ -196,7 +196,7 @@ void NormalizeRE::HandleQuote(string& s)
 	for (int i = 0; i < s.length(); i++)
 	{
 		//��ǰ�ַ���",����i==0����\""
-		if (s[i] == '"')
+		if (s[i] == '"' && !IsEscaped(s, i))
 		{
 			if (!quote)
 			{
@@ -226,7 +226,7 @@ void NormalizeRE::HandleDot(string& s)
 	string ans = "";
 	int n = s.size();
 	for (int i = 0; i < n; i++) {
-		if (s[i] == '.' && (i == 0 || (i != 0 && s[i - 1] != '\\'))) {
+		if (s[i] == '.' && !IsEscaped(s, i)) {
 			ans += '(';
 			unordered_set<char> charset;
 			string replace_item = " \t\v\n\f"; //[^ \n\v\f\t]

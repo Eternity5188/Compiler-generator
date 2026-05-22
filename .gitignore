@@ -1,9 +1,11 @@
 # Build
 build/
+build_mingw_run/
 # Target
 target/
 # Generated sources
 resource/source/
+tests/output/
 # temp
 temp/
 

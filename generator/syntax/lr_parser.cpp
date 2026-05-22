@@ -284,7 +284,7 @@ bool LRParser::parse(const std::vector<Token>& tokens)
         case Action::Type::Reduce:
             {
                 uint32_t prod_id = action.get_arg();
-                const Production* prod = grammar_->get_production(prod_id);
+                const Production* prod = grammar_->get_production(prod_id); // 你必须实现
                 if (!prod)
                 {
                     std::cerr << "Unknow production: " << prod_id << '\n';

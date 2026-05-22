@@ -8,7 +8,7 @@
 using namespace std;
 
 //lexRE reserved characters
-const unordered_set<char> lex_RC{ '.','|','*','(',')','+','?','{','}','[',']' };
+const unordered_set<char> lex_RC{ '\\','.','|','*','(',')','+','?','{','}','[',']','#' };
 
 //×Ö·û¼¯
 const string ALLSET("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#%'()*+,-./:;<=>\?[\\]^{|}_ \n\t\v\f~&");

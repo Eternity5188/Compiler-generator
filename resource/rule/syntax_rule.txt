@@ -1,34 +1,41 @@
-/* ==================== 终结符声明 ==================== */
-%token INT FLOAT CHAR VOID
-%token IF ELSE WHILE FOR DO RETURN BREAK CONTINUE
-%token ADD SUB MUL DIV MOD                             /* +, -, *, /, % */
-%token INC DEC                                         /* ++, -- */
-%token UNARY_ADD UNARY_SUB                             /* +, - */
-%token ASSIGN                                          /* = */
-%token EQ NE LT LE GT GE                               /* ==, !=, <, <=, >, >= */
-%token AND OR NOT                                      /* &&, ||, ! */
-%token AMPER MUL_TOKEN                                 /* &, * */
-%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET   /* ( ) { } [ ] */
-%token QUESTION COLON COMMA SEMICOLON                  /* ? : , ; */
-%token IDENTIFIER NUMBER STRING
+/* ==================== terminals ==================== */
+%token BREAK CASE CHAR CONST CONTINUE DEFAULT DO DOUBLE ELSE ENUM FLOAT FOR IF INT LONG RETURN SHORT SIGNED SIZEOF STATIC STRUCT SWITCH TYPEDEF UNION UNSIGNED VOID WHILE
+%token ADD SUB MUL DIV MOD
+%token INC DEC
+%token UNARY_ADD UNARY_SUB
+%token ASSIGN
+%token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%token LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
+%token EQ NE LT LE GT GE
+%token AND OR NOT
+%token LEFT_SHIFT RIGHT_SHIFT
+%token AMPER BIT_OR BIT_XOR BIT_NOT
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+%token DOT PTR
+%token QUESTION COLON COMMA SEMICOLON
+%token IDENTIFIER TYPE_NAME NUMBER STRING
 
-/* ==================== 优先级和结合性 ==================== */
-%right ASSIGN
+/* ==================== precedence ==================== */
+%right ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 %left OR
 %left AND
+%left BIT_OR
+%left BIT_XOR
+%left AMPER
 %left EQ NE
 %left LT LE GT GE
+%left LEFT_SHIFT RIGHT_SHIFT
 %left ADD SUB
 %left MUL DIV MOD
-%right NOT UNARY_ADD UNARY_SUB
+%right NOT BIT_NOT UNARY_ADD UNARY_SUB SIZEOF
 %right INC DEC
-%left INC DEC LBRACKET LPAREN
+%left INC DEC LBRACKET LPAREN DOT PTR
 
 %start program
 
 %%
 
-/* ==================== 程序结构 ==================== */
+/* ==================== program ==================== */
 program
     : external_declaration_list
     ;
@@ -43,16 +50,50 @@ external_declaration
     | declaration
     ;
 
-/* ==================== 声明部分 ==================== */
+function_definition
+    : declaration_specifiers IDENTIFIER LPAREN parameter_list RPAREN compound_statement
+    | declaration_specifiers IDENTIFIER LPAREN RPAREN compound_statement
+    ;
+
+/* ==================== declarations ==================== */
 declaration
-    : type_specifier init_declarator_list SEMICOLON
+    : declaration_specifiers SEMICOLON
+    | declaration_specifiers init_declarator_list SEMICOLON
+    ;
+
+declaration_specifiers
+    : type_specifier
+    | type_specifier type_specifier
+    | type_specifier type_specifier type_specifier
+    | TYPEDEF type_specifier
+    | TYPEDEF type_specifier type_specifier
+    | TYPEDEF type_specifier type_specifier type_specifier
+    | STATIC type_specifier
+    | STATIC type_specifier type_specifier
+    | STATIC type_specifier type_specifier type_specifier
+    | EXTERN type_specifier
+    | EXTERN type_specifier type_specifier
+    | CONST type_specifier
+    | CONST type_specifier type_specifier
+    | CONST type_specifier type_specifier type_specifier
+    | STATIC CONST type_specifier
+    | STATIC CONST type_specifier type_specifier
+    | STATIC CONST type_specifier type_specifier type_specifier
     ;
 
 type_specifier
-    : INT
-    | FLOAT
+    : VOID
     | CHAR
-    | VOID
+    | SHORT
+    | INT
+    | LONG
+    | FLOAT
+    | DOUBLE
+    | SIGNED
+    | UNSIGNED
+    | struct_or_union_specifier
+    | enum_specifier
+    | TYPE_NAME
     ;
 
 init_declarator_list
@@ -67,19 +108,26 @@ init_declarator
 
 declarator
     : IDENTIFIER
-    | MUL_TOKEN declarator
+    | MUL declarator
     | declarator LBRACKET NUMBER RBRACKET
     | declarator LBRACKET RBRACKET
     ;
 
 initializer
-    : expression
+    : assignment_expression
+    | LBRACE initializer_list RBRACE
+    | LBRACE initializer_list COMMA RBRACE
     ;
 
-/* ==================== 函数定义 ==================== */
-function_definition
-    : type_specifier IDENTIFIER LPAREN parameter_list RPAREN compound_statement
-    | type_specifier IDENTIFIER LPAREN RPAREN compound_statement
+initializer_list
+    : initializer
+    | initializer_list COMMA initializer
+    ;
+
+type_name
+    : declaration_specifiers
+    | declaration_specifiers MUL
+    | declaration_specifiers MUL MUL
     ;
 
 parameter_list
@@ -88,18 +136,68 @@ parameter_list
     ;
 
 parameter_declaration
-    : type_specifier declarator
-    | type_specifier
+    : declaration_specifiers declarator
+    | declaration_specifiers
     ;
 
-/* ==================== 语句部分 ==================== */
+/* ==================== struct / union / enum ==================== */
+struct_or_union_specifier
+    : struct_or_union IDENTIFIER LBRACE struct_declaration_list RBRACE
+    | struct_or_union LBRACE struct_declaration_list RBRACE
+    | struct_or_union IDENTIFIER
+    ;
+
+struct_or_union
+    : STRUCT
+    | UNION
+    ;
+
+struct_declaration_list
+    : struct_declaration
+    | struct_declaration_list struct_declaration
+    ;
+
+struct_declaration
+    : declaration_specifiers struct_declarator_list SEMICOLON
+    ;
+
+struct_declarator_list
+    : declarator
+    | struct_declarator_list COMMA declarator
+    ;
+
+enum_specifier
+    : ENUM IDENTIFIER LBRACE enumerator_list RBRACE
+    | ENUM IDENTIFIER LBRACE enumerator_list COMMA RBRACE
+    | ENUM LBRACE enumerator_list RBRACE
+    | ENUM LBRACE enumerator_list COMMA RBRACE
+    | ENUM IDENTIFIER
+    ;
+
+enumerator_list
+    : enumerator
+    | enumerator_list COMMA enumerator
+    ;
+
+enumerator
+    : IDENTIFIER
+    | IDENTIFIER ASSIGN assignment_expression
+    ;
+
+/* ==================== statements ==================== */
 statement
-    : expression_statement
+    : labeled_statement
+    | expression_statement
     | compound_statement
     | selection_statement
     | iteration_statement
     | jump_statement
     | declaration
+    ;
+
+labeled_statement
+    : CASE assignment_expression COLON statement
+    | DEFAULT COLON statement
     ;
 
 expression_statement
@@ -120,6 +218,7 @@ statement_list
 selection_statement
     : IF LPAREN expression RPAREN statement
     | IF LPAREN expression RPAREN statement ELSE statement
+    | SWITCH LPAREN expression RPAREN statement
     ;
 
 iteration_statement
@@ -127,6 +226,8 @@ iteration_statement
     | DO statement WHILE LPAREN expression RPAREN SEMICOLON
     | FOR LPAREN expression_statement expression_statement expression RPAREN statement
     | FOR LPAREN expression_statement expression_statement RPAREN statement
+    | FOR LPAREN declaration expression_statement expression RPAREN statement
+    | FOR LPAREN declaration expression_statement RPAREN statement
     ;
 
 jump_statement
@@ -136,7 +237,7 @@ jump_statement
     | CONTINUE SEMICOLON
     ;
 
-/* ==================== 表达式部分 ==================== */
+/* ==================== expressions ==================== */
 expression
     : assignment_expression
     | expression COMMA assignment_expression
@@ -145,6 +246,16 @@ expression
 assignment_expression
     : conditional_expression
     | unary_expression ASSIGN assignment_expression
+    | unary_expression ADD_ASSIGN assignment_expression
+    | unary_expression SUB_ASSIGN assignment_expression
+    | unary_expression MUL_ASSIGN assignment_expression
+    | unary_expression DIV_ASSIGN assignment_expression
+    | unary_expression MOD_ASSIGN assignment_expression
+    | unary_expression LEFT_ASSIGN assignment_expression
+    | unary_expression RIGHT_ASSIGN assignment_expression
+    | unary_expression AND_ASSIGN assignment_expression
+    | unary_expression XOR_ASSIGN assignment_expression
+    | unary_expression OR_ASSIGN assignment_expression
     ;
 
 conditional_expression
@@ -158,8 +269,23 @@ logical_or_expression
     ;
 
 logical_and_expression
+    : inclusive_or_expression
+    | logical_and_expression AND inclusive_or_expression
+    ;
+
+inclusive_or_expression
+    : exclusive_or_expression
+    | inclusive_or_expression BIT_OR exclusive_or_expression
+    ;
+
+exclusive_or_expression
+    : and_expression
+    | exclusive_or_expression BIT_XOR and_expression
+    ;
+
+and_expression
     : equality_expression
-    | logical_and_expression AND equality_expression
+    | and_expression AMPER equality_expression
     ;
 
 equality_expression
@@ -169,11 +295,17 @@ equality_expression
     ;
 
 relational_expression
+    : shift_expression
+    | relational_expression LT shift_expression
+    | relational_expression LE shift_expression
+    | relational_expression GT shift_expression
+    | relational_expression GE shift_expression
+    ;
+
+shift_expression
     : additive_expression
-    | relational_expression LT additive_expression
-    | relational_expression LE additive_expression
-    | relational_expression GT additive_expression
-    | relational_expression GE additive_expression
+    | shift_expression LEFT_SHIFT additive_expression
+    | shift_expression RIGHT_SHIFT additive_expression
     ;
 
 additive_expression
@@ -191,7 +323,7 @@ multiplicative_expression
 
 cast_expression
     : unary_expression
-    | LPAREN type_specifier RPAREN cast_expression
+    | LPAREN type_name RPAREN cast_expression
     ;
 
 unary_expression
@@ -201,8 +333,11 @@ unary_expression
     | UNARY_ADD unary_expression
     | UNARY_SUB unary_expression
     | NOT unary_expression
+    | BIT_NOT unary_expression
     | AMPER unary_expression
-    | MUL_TOKEN unary_expression
+    | MUL unary_expression
+    | SIZEOF unary_expression
+    | SIZEOF LPAREN type_name RPAREN
     ;
 
 postfix_expression
@@ -210,6 +345,8 @@ postfix_expression
     | postfix_expression LBRACKET expression RBRACKET
     | postfix_expression LPAREN argument_list RPAREN
     | postfix_expression LPAREN RPAREN
+    | postfix_expression DOT IDENTIFIER
+    | postfix_expression PTR IDENTIFIER
     | postfix_expression INC
     | postfix_expression DEC
     ;

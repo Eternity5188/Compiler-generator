@@ -1,5 +1,10 @@
 #include "DFA.h"
 
+namespace {
+constexpr bool kDfaDebug = false;
+}
+
+
 unordered_set<int> DFA::epsilonClosure(NFAState* s)
 {
     unordered_set<int> closure;
@@ -104,6 +109,7 @@ void DFA::buildDFA()
     }
 
 #ifdef DEBUG
+    if (kDfaDebug) {
     cout << "NFADEBUG----------------------------------NFADEBUG" << endl;
     nfaidInUse.resize(nfa.size(), 0);
     for (int i = 0; i < states.size(); i++)
@@ -121,8 +127,13 @@ void DFA::buildDFA()
     }
     cout << "NFADEBUG----------------------------------NFADEBUG" << endl;
 
-    vector<int> totalUsedToken(95, 0);
-    vector<int> finalUsedToken(95, 0);
+    int maxTokenId = -1;
+    for (auto& s : states)
+        if (s->isAccept)
+            maxTokenId = max(maxTokenId, s->tokenID);
+
+    vector<int> totalUsedToken(maxTokenId + 1, 0);
+    vector<int> finalUsedToken(maxTokenId + 1, 0);
     vector<set<int>> each_stoken(states.size());
     int acceptnum = 0;
     for (auto& s : states)
@@ -149,6 +160,7 @@ void DFA::buildDFA()
     cout << "total ac dfa states = " << acceptnum << endl;
 
     cout << "breakpoint" << endl;
+    }
 #endif
 }
 
@@ -190,7 +202,9 @@ void DFA::hopcroftMinDFA()
 
     bool change = true;
     int round = 0;
-    cout << "round : " << round++ << " -- newStates.size = " << newStates.size() << endl;
+    if (kDfaDebug)
+        cout << "round : " << round << " -- newStates.size = " << newStates.size() << endl;
+    round++;
     checksum(newStates);
     while (change)
     {
@@ -230,8 +244,10 @@ void DFA::hopcroftMinDFA()
             if (splitter.size() == 1) {
                 // 该组的所有转移相同
                 changeStates.push_back(group);
-                for (auto& [sig, _] : splitter)
-                    cout << "signature " << " : " << sig << endl;
+                if (kDfaDebug) {
+                    for (auto& [sig, _] : splitter)
+                        cout << "signature " << " : " << sig << endl;
+                }
             }
             else {
                 // 存在不同转移
@@ -240,12 +256,16 @@ void DFA::hopcroftMinDFA()
                 for (auto& [_, subset] : splitter)
                 {
                     changeStates.push_back(subset);
-                    cout << "signature " << k++ << " : " << _ << endl;
+                    if (kDfaDebug)
+                        cout << "signature " << k << " : " << _ << endl;
+                    k++;
                 }
             }
         }
         newStates = changeStates;
-        cout << "round : " << round++ << " -- newStates.size = " << newStates.size() << endl;
+        if (kDfaDebug)
+        cout << "round : " << round << " -- newStates.size = " << newStates.size() << endl;
+    round++;
         checksum(newStates);
     }
 
