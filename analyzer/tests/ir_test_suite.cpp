@@ -45,6 +45,8 @@ struct Category {
     std::vector<Case> cases;
 };
 
+std::string g_last_ir_dump = "(none)";
+
 std::string to_chinese_number(int n) {
     static const std::vector<std::string> digits = {
         "零", "一", "二", "三", "四", "五", "六", "七", "八", "九"
@@ -92,6 +94,18 @@ std::string dump_code(const std::vector<Quadruple>& code) {
         return "(none)";
     }
     return oss.str();
+}
+
+void reset_last_ir_dump() {
+    g_last_ir_dump = "(none)";
+}
+
+void record_last_ir_dump(const std::vector<Quadruple>& code) {
+    g_last_ir_dump = dump_code(code);
+}
+
+const std::string& get_last_ir_dump() {
+    return g_last_ir_dump;
 }
 
 bool contains_op(const std::vector<Quadruple>& code, const std::string& op) {
@@ -212,6 +226,7 @@ IRRunResult run_ir(std::unique_ptr<ASTNode> root) {
     ret.code = code_ref;
     ret.has_error = generator.errors().has_error();
     ret.error_text = errors.str();
+    record_last_ir_dump(ret.code);
     return ret;
 }
 
@@ -244,6 +259,7 @@ Category make_parser_category() {
         std::unique_ptr<ir::ASTNode> ir_ast = ir::SyntaxASTAdapter::convert(root);
         ir::IRGenerator gen;
         const auto& code = gen.generate(ir_ast.get());
+        record_last_ir_dump(code);
         if (gen.errors().has_error()) {
             std::ostringstream oss;
             gen.errors().print_all(oss);
@@ -1338,6 +1354,7 @@ int run_all_ir_tests() {
         for (std::size_t j = 0; j < categories[i].cases.size(); ++j) {
             ++total;
             const std::string idx_cn = to_chinese_number(total);
+            reset_last_ir_dump();
             const TestResult r = categories[i].cases[j].run();
             if (r.passed) {
                 ++passed;
@@ -1345,6 +1362,7 @@ int run_all_ir_tests() {
             } else {
                 std::cout << "测试用例" << idx_cn << "未通过：（" << categories[i].cases[j].name << "；" << r.detail << "）" << '\n';
             }
+            std::cout << "  四元式：" << get_last_ir_dump() << '\n';
         }
     }
 
