@@ -25,7 +25,7 @@ target_include_directories(syntax_generator PRIVATE ${COMMON_DIR})
 
 add_custom_command(
     OUTPUT ${GENERATED_DIR}/syntax_parser.cpp ${GENERATED_DIR}/syntax_parser.h
-    COMMAND ${TARGET_DIR}/generator/syntax_generator
+    COMMAND $<TARGET_FILE:syntax_generator>
     # DEPENDS syntax_generator generate_lex
     DEPENDS syntax_generator
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
