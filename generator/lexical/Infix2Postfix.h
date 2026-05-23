@@ -8,18 +8,18 @@
 #include "NormaliseRE.h"
 using namespace std;
 
-// 优先级表，数值越大优先级越高
+// Operator precedence: larger value means higher precedence
 extern unordered_map<char, int> precedence;
 
 class Infix2Postfix
 {
 public:
-	//给每一个规则添加
+	// Processing helpers
 	void add_dot(string& s);
 	void infix2postfix(string& infix);
 	void add_dot4rules(vector<Rule>& rules);
 
-	// 总调用函数
+	// Top-level API
 	void prepare4nfa(vector<Rule>& rules);
 };
 #endif // !Infix2Suffix_H

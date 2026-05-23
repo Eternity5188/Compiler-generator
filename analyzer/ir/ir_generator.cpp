@@ -60,6 +60,83 @@ std::string find_decl_identifier(const ASTNode* node) {
     return "";
 }
 
+std::string find_last_identifier(const ASTNode* node) {
+    if (node == nullptr) {
+        return "";
+    }
+
+    std::string best;
+    if (node->type == ASTNodeType::IDENT && !node->lexeme.empty()) {
+        best = node->lexeme;
+    } else if (normalize_key(node->source_type) == "identifier" && !node->lexeme.empty()) {
+        best = node->lexeme;
+    }
+
+    for (std::size_t i = 0; i < node->children.size(); ++i) {
+        std::string cur = find_last_identifier(node->children[i].get());
+        if (!cur.empty()) {
+            best = cur;
+        }
+    }
+
+    return best;
+}
+
+std::string find_decl_identifier_prefer_declarator(const ASTNode* node) {
+    if (node == nullptr) {
+        return "";
+    }
+
+    const ASTNode* declarator = find_first_by_source_type(node, "declarator");
+    if (declarator != nullptr) {
+        std::string n = find_last_identifier(declarator);
+        if (!n.empty()) {
+            return n;
+        }
+    }
+
+    const ASTNode* direct = find_first_by_source_type(node, "directdeclarator");
+    if (direct != nullptr) {
+        std::string n = find_last_identifier(direct);
+        if (!n.empty()) {
+            return n;
+        }
+    }
+
+    return find_last_identifier(node);
+}
+
+void collect_nodes_by_type(const ASTNode* node, ASTNodeType wanted_type, std::vector<const ASTNode*>& out) {
+    if (node == nullptr) {
+        return;
+    }
+
+    if (node->type == wanted_type) {
+        out.push_back(node);
+    }
+
+    for (std::size_t i = 0; i < node->children.size(); ++i) {
+        collect_nodes_by_type(node->children[i].get(), wanted_type, out);
+    }
+}
+
+void collect_nodes_by_source_type(
+    const ASTNode* node,
+    const std::string& wanted_normalized,
+    std::vector<const ASTNode*>& out) {
+    if (node == nullptr) {
+        return;
+    }
+
+    if (normalize_key(node->source_type) == wanted_normalized) {
+        out.push_back(node);
+    }
+
+    for (std::size_t i = 0; i < node->children.size(); ++i) {
+        collect_nodes_by_source_type(node->children[i].get(), wanted_normalized, out);
+    }
+}
+
 DataType infer_decl_type(const ASTNode* node) {
     const ASTNode* type_node = find_first_by_source_type(node, "typespecifier");
     if (type_node == nullptr) {
@@ -134,6 +211,9 @@ void IRGenerator::visit_stmt(const ASTNode* node) {
         case ASTNodeType::DECL:
             visit_decl(node);
             break;
+        case ASTNodeType::FUNC_DEF:
+            visit_func_def(node);
+            break;
         case ASTNodeType::ASSIGN:
             visit_assign(node);
             break;
@@ -189,33 +269,63 @@ IRGenerator::ExprResult IRGenerator::visit_expr(const ASTNode* node) {
             return ExprResult{node->lexeme, node->data_type, false};
 
         case ASTNodeType::BINOP: {
-            if (node->children.size() == 1) {
-                return visit_expr(node->children[0].get());
+            std::vector<ExprResult> operands;
+            operands.reserve(node->children.size());
+            for (std::size_t i = 0; i < node->children.size(); ++i) {
+                ExprResult cur = visit_expr(node->children[i].get());
+                if (!cur.place.empty()) {
+                    operands.push_back(cur);
+                }
             }
 
-            if (node->children.size() != 2) {
+            if (node->op == OpType::UNKNOWN) {
+                if (operands.empty()) {
+                    return {};
+                }
+                return operands.back();
+            }
+
+            if (operands.size() == 1) {
+                return operands[0];
+            }
+
+            if (operands.size() < 2) {
                 report(ErrorType::TYPE_MISMATCH, "binary op must have exactly 2 operands", node);
                 return {};
             }
 
-            ExprResult lhs = visit_expr(node->children[0].get());
-            ExprResult rhs = visit_expr(node->children[1].get());
-            std::string tmp = emitter_.new_temp();
-            emitter_.emit(op_to_ir(node->op), lhs.place, rhs.place, tmp);
-            return ExprResult{tmp, lhs.type, false};
+            ExprResult acc = operands[0];
+            for (std::size_t i = 1; i < operands.size(); ++i) {
+                std::string tmp = emitter_.new_temp();
+                emitter_.emit(op_to_ir(node->op), acc.place, operands[i].place, tmp);
+                acc = ExprResult{tmp, acc.type, false};
+            }
+            return acc;
         }
 
         case ASTNodeType::UNOP: {
-            if (node->children.size() == 1 && node->op == OpType::UNKNOWN) {
-                return visit_expr(node->children[0].get());
+            std::vector<ExprResult> operands;
+            operands.reserve(node->children.size());
+            for (std::size_t i = 0; i < node->children.size(); ++i) {
+                ExprResult cur = visit_expr(node->children[i].get());
+                if (!cur.place.empty()) {
+                    operands.push_back(cur);
+                }
             }
 
-            if (node->children.size() != 1) {
+            if (node->op == OpType::UNKNOWN) {
+                if (operands.empty()) {
+                    return {};
+                }
+                return operands.back();
+            }
+
+            if (operands.empty()) {
                 report(ErrorType::TYPE_MISMATCH, "unary op must have exactly 1 operand", node);
                 return {};
             }
 
-            ExprResult arg = visit_expr(node->children[0].get());
+            ExprResult arg = operands.back();
             std::string tmp = emitter_.new_temp();
             emitter_.emit(op_to_ir(node->op), arg.place, "-", tmp);
             return ExprResult{tmp, arg.type, false};
@@ -227,6 +337,33 @@ IRGenerator::ExprResult IRGenerator::visit_expr(const ASTNode* node) {
                 return visit_expr(node->children[0].get());
             }
             return {};
+
+        case ASTNodeType::FUNC_CALL: {
+            std::string callee = find_decl_identifier(node);
+            if (callee.empty()) {
+                callee = "<anon>";
+            }
+
+            int arg_count = 0;
+            for (std::size_t i = 0; i < node->children.size(); ++i) {
+                const ASTNode* child = node->children[i].get();
+                if (child == nullptr) {
+                    continue;
+                }
+                const std::string src = normalize_key(child->source_type);
+                if (src == "identifier" && child->lexeme == callee) {
+                    continue;
+                }
+                ExprResult arg = visit_expr(child);
+                if (!arg.place.empty()) {
+                    ++arg_count;
+                }
+            }
+
+            std::string tmp = emitter_.new_temp();
+            emitter_.emit("call", callee, std::to_string(arg_count), tmp);
+            return ExprResult{tmp, DataType::INT, false};
+        }
 
         default:
             if (!node->children.empty()) {
@@ -259,7 +396,7 @@ void IRGenerator::visit_block(const ASTNode* node) {
 void IRGenerator::visit_decl(const ASTNode* node) {
     std::string decl_name = node->lexeme;
     if (decl_name.empty()) {
-        decl_name = find_decl_identifier(node);
+        decl_name = find_decl_identifier_prefer_declarator(node);
     }
 
     if (decl_name.empty()) {
@@ -300,18 +437,104 @@ void IRGenerator::visit_decl(const ASTNode* node) {
     }
 }
 
+void IRGenerator::visit_func_def(const ASTNode* node) {
+    std::string func_name = find_decl_identifier(node);
+    if (func_name.empty()) {
+        func_name = "<anonymous_func>";
+    }
+
+    SymbolEntry fn_entry;
+    fn_entry.name = func_name;
+    fn_entry.type = DataType::INT;
+    fn_entry.width = 4;
+    fn_entry.offset = global_scope_.allocate(fn_entry.width);
+    fn_entry.line_no = node->line_no;
+    static_cast<void>(global_scope_.insert(fn_entry));
+
+    SymbolTable* previous = current_scope_;
+    current_scope_ = current_scope_->enter_scope("func");
+
+    std::vector<const ASTNode*> params;
+    collect_nodes_by_type(node, ASTNodeType::PARAM_DECL, params);
+    if (params.empty()) {
+        collect_nodes_by_source_type(node, "parameterdeclaration", params);
+    }
+    for (std::size_t i = 0; i < params.size(); ++i) {
+        std::string param_name = find_decl_identifier_prefer_declarator(params[i]);
+        if (param_name.empty()) {
+            continue;
+        }
+
+        SymbolEntry p;
+        p.name = param_name;
+        p.type = infer_decl_type(params[i]);
+        if (p.type == DataType::UNKNOWN) {
+            p.type = DataType::INT;
+        }
+        p.width = get_type_width(p.type);
+        if (p.width <= 0) {
+            p.width = 4;
+        }
+        p.offset = current_scope_->allocate(p.width);
+        p.line_no = params[i]->line_no;
+        static_cast<void>(current_scope_->insert(p));
+    }
+
+    bool visited_body = false;
+    for (std::size_t i = 0; i < node->children.size(); ++i) {
+        const ASTNode* child = node->children[i].get();
+        if (child == nullptr) {
+            continue;
+        }
+        if (child->type == ASTNodeType::BLOCK || normalize_key(child->source_type) == "compoundstatement") {
+            visit_stmt(child);
+            visited_body = true;
+            break;
+        }
+    }
+
+    if (!visited_body) {
+        for (std::size_t i = 0; i < node->children.size(); ++i) {
+            visit_stmt(node->children[i].get());
+        }
+    }
+
+    current_scope_ = current_scope_->exit_scope();
+    if (current_scope_ == nullptr) {
+        current_scope_ = previous;
+    }
+}
+
 void IRGenerator::visit_assign(const ASTNode* node) {
-    if (node->children.size() != 2) {
+    ExprResult lhs;
+    ExprResult rhs;
+    bool lhs_set = false;
+
+    for (std::size_t i = 0; i < node->children.size(); ++i) {
+        ExprResult cur = visit_expr(node->children[i].get());
+        if (cur.place.empty()) {
+            continue;
+        }
+        if (!lhs_set) {
+            lhs = cur;
+            lhs_set = true;
+        } else {
+            rhs = cur;
+        }
+    }
+
+    if (!lhs_set || rhs.place.empty()) {
         report(ErrorType::TYPE_MISMATCH, "assignment must have lhs and rhs", node);
         return;
     }
 
-    ExprResult lhs = visit_expr(node->children[0].get());
-    ExprResult rhs = visit_expr(node->children[1].get());
-
     if (!lhs.is_lvalue) {
-        report(ErrorType::NOT_LVALUE, "left side of assignment is not assignable", node->children[0].get());
-        return;
+        const bool literal_like = !lhs.place.empty() &&
+            (std::isdigit(static_cast<unsigned char>(lhs.place[0])) || lhs.place[0] == '\'' || lhs.place[0] == '"');
+        if (literal_like) {
+            report(ErrorType::NOT_LVALUE, "left side of assignment is not assignable", node->children[0].get());
+            return;
+        }
     }
 
     emitter_.emit(":=", rhs.place, "-", lhs.place);

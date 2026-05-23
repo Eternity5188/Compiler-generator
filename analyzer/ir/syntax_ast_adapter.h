@@ -77,7 +77,7 @@ private:
             {"multiplicative_expression", ASTNodeType::BINOP},
             {"unary_expression", ASTNodeType::UNOP},
             {"cast_expression", ASTNodeType::CAST},
-            {"postfix_expression", ASTNodeType::FUNC_CALL},
+            {"postfix_expression", ASTNodeType::UNKNOWN},
             {"argument_expression_list", ASTNodeType::ARG_LIST},
             {"identifier", ASTNodeType::IDENT},
             {"number", ASTNodeType::INT_LITERAL},
@@ -96,11 +96,6 @@ private:
         const std::unordered_map<std::string, ASTNodeType>::const_iterator it = table.find(key);
         if (it != table.end()) {
             return it->second;
-        }
-
-        if (key == "int" || key == "float" || key == "char" || key == "void" ||
-            key == "type_specifier") {
-            return ASTNodeType::DECL;
         }
 
         return ASTNodeType::UNKNOWN;
@@ -157,6 +152,7 @@ private:
                 if (has_child_type(node, "lparen")) {
                     return ASTNodeType::FUNC_CALL;
                 }
+                return ASTNodeType::UNKNOWN;
             }
 
             if (key == "expression" && has_child_type(node, "comma")) {

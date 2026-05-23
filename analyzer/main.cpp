@@ -1,45 +1,23 @@
+#include "pipeline_api.h"
+
 #include "lexical_parser.h"
 #include "syntax_parser.h"
-#include "ir/ir_pipeline_api.h"
-#include "tests/ir_test_suite.h"
-#include "tests/pipeline_e2e_test_suite.h"
+#include "ir/ir_generator.h"
+#include "ir/syntax_ast_adapter.h"
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_set>
-#include <vector>
+
+int run_ir_unit_tests();
+int run_system_integration_tests();
+
+namespace ir {
 
 namespace {
-
-void print_ast(ASTNode* node, int indent = 0)
-{
-    if (!node)
-        return;
-
-    for (int i = 0; i < indent; ++i)
-        std::cout << "  ";
-
-    std::cout << "[" << node->type << "]";
-    if (!node->value.empty())
-        std::cout << " (" << node->value << ")";
-    std::cout << "\n";
-
-    for (ASTNode* child : node->children)
-        print_ast(child, indent + 1);
-}
-
-void print_tokens(const std::vector<Token>& tokens)
-{
-    std::cout << "Tokens:\n";
-    for (const Token& token : tokens)
-    {
-        std::cout << "  [" << token.type << "]";
-        if (!token.value.empty())
-            std::cout << " (" << token.value << ")";
-        std::cout << "\n";
-    }
-}
 
 bool is_tag_keyword(const std::string& type)
 {
@@ -50,6 +28,47 @@ bool is_typedef_declarator_boundary(const std::string& type)
 {
     return type == "COMMA" || type == "SEMICOLON" || type == "ASSIGN"
         || type == "LBRACKET" || type == "LPAREN";
+}
+
+std::string dump_tokens(const std::vector<Token>& tokens)
+{
+    std::ostringstream oss;
+    if (tokens.empty())
+        return "(none)";
+
+    for (std::size_t i = 0; i < tokens.size(); ++i)
+    {
+        oss << i << ": [" << tokens[i].type << "] " << tokens[i].value;
+        if (i + 1 < tokens.size())
+            oss << "\n";
+    }
+    return oss.str();
+}
+
+void dump_parser_ast_impl(const ::ASTNode* node, std::ostringstream& oss, int depth)
+{
+    if (node == nullptr)
+    {
+        oss << std::string(depth * 2, ' ') << "(null)";
+        return;
+    }
+
+    oss << std::string(depth * 2, ' ') << node->type;
+    if (!node->value.empty())
+        oss << ": " << node->value;
+    oss << "\n";
+
+    for (std::size_t i = 0; i < node->children.size(); ++i)
+        dump_parser_ast_impl(node->children[i], oss, depth + 1);
+}
+
+std::string dump_parser_ast(const ::ASTNode* root)
+{
+    std::ostringstream oss;
+    if (root == nullptr)
+        return "(none)";
+    dump_parser_ast_impl(root, oss, 0);
+    return oss.str();
 }
 
 std::vector<Token> classify_typedef_names(std::vector<Token> tokens)
@@ -108,48 +127,197 @@ std::vector<Token> classify_typedef_names(std::vector<Token> tokens)
     return tokens;
 }
 
-int run_source_file(const char* path)
+}  // namespace
+
+std::string dump_quadruples(const std::vector<Quadruple>& code)
 {
-    std::ifstream input(path);
-    if (!input.is_open())
+    std::ostringstream oss;
+    bool first = true;
+    for (std::size_t i = 0; i < code.size(); ++i)
     {
-        std::cerr << "Failed to open source file: " << path << "\n";
-        return 1;
+        if (code[i].op == "nop")
+            continue;
+        if (!first)
+            oss << " | ";
+        first = false;
+        oss << "(" << code[i].op << ", " << code[i].arg1 << ", " << code[i].arg2 << ", " << code[i].result << ")";
+    }
+    return first ? "(none)" : oss.str();
+}
+
+PipelineResult generate_ir_from_ir_ast(const ir::ASTNode* ir_root)
+{
+    PipelineResult result;
+    if (ir_root == nullptr)
+    {
+        result.error_text = "IR AST is null";
+        return result;
     }
 
-    std::vector<Token> tokens = classify_typedef_names(tokenize(input));
-    for (const Token& token : tokens)
+    IRGenerator generator;
+    const std::vector<Quadruple>& code_ref = generator.generate(ir_root);
+    result.code = code_ref;
+
+    if (generator.errors().has_error())
     {
-        if (token.type == "ERROR")
+        std::ostringstream oss;
+        generator.errors().print_all(oss);
+        result.error_text = oss.str();
+        result.success = false;
+        return result;
+    }
+
+    result.success = true;
+    return result;
+}
+
+PipelineResult generate_ir_from_parser_ast(const ::ASTNode* parser_root)
+{
+    PipelineResult result;
+    if (parser_root == nullptr)
+    {
+        result.error_text = "parser AST is null";
+        return result;
+    }
+
+    std::unique_ptr<ir::ASTNode> ir_ast = ir::SyntaxASTAdapter::convert(parser_root);
+    if (!ir_ast)
+    {
+        result.error_text = "failed to convert parser AST to IR AST";
+        return result;
+    }
+
+    return generate_ir_from_ir_ast(ir_ast.get());
+}
+
+PipelineResult generate_ir_from_tokens(const std::vector<Token>& tokens)
+{
+    PipelineResult result;
+    SyntaxParser parser;
+    if (!parser.parse(tokens))
+    {
+        result.error_text = "parser.parse(tokens) failed";
+        return result;
+    }
+
+    ::ASTNode* root = parser.get_ast_tree();
+    if (root == nullptr)
+    {
+        result.error_text = "parser produced null AST";
+        return result;
+    }
+
+    return generate_ir_from_parser_ast(root);
+}
+
+PipelineResult generate_ir_from_source_stream(std::istream& input)
+{
+    PipelineResult result;
+    std::vector<Token> tokens = classify_typedef_names(tokenize(input));
+
+    for (std::size_t i = 0; i < tokens.size(); ++i)
+    {
+        if (tokens[i].type == "ERROR")
         {
-            std::cerr << "Lexical error near: " << token.value << "\n";
-            return 1;
+            result.error_text = "lexical error near: " + tokens[i].value;
+            return result;
         }
     }
 
-    print_tokens(tokens);
+    return generate_ir_from_tokens(tokens);
+}
+
+PipelineResult generate_ir_from_source_file(const std::string& file_path)
+{
+    PipelineResult result;
+    std::ifstream input(file_path);
+    if (!input.is_open())
+    {
+        result.error_text = "failed to open source file: " + file_path;
+        return result;
+    }
+    return generate_ir_from_source_stream(input);
+}
+
+PipelineDebugResult analyze_source_file_with_debug(const std::string& file_path)
+{
+    PipelineDebugResult debug;
+
+    std::ifstream input(file_path);
+    if (!input.is_open())
+    {
+        debug.pipeline.error_text = "failed to open source file: " + file_path;
+        return debug;
+    }
+
+    std::vector<Token> tokens = classify_typedef_names(tokenize(input));
+    debug.lexer_output = dump_tokens(tokens);
+
+    for (std::size_t i = 0; i < tokens.size(); ++i)
+    {
+        if (tokens[i].type == "ERROR")
+        {
+            debug.pipeline.error_text = "lexical error near: " + tokens[i].value;
+            debug.yacc_output = "(parser skipped due to lexical error)";
+            debug.ir_input_ast_output = "(none)";
+            return debug;
+        }
+    }
 
     SyntaxParser parser;
-    std::cout << "Start parsing...\n";
     if (!parser.parse(tokens))
     {
-        std::cerr << "Parse failed!\n";
+        debug.pipeline.error_text = "parser.parse(tokens) failed";
+        debug.yacc_output = "(parse failed)";
+        debug.ir_input_ast_output = "(none)";
+        return debug;
+    }
+
+    ::ASTNode* root = parser.get_ast_tree();
+    debug.yacc_output = dump_parser_ast(root);
+    debug.ir_input_ast_output = debug.yacc_output;
+
+    if (root == nullptr)
+    {
+        debug.pipeline.error_text = "parser produced null AST";
+        return debug;
+    }
+
+    debug.pipeline = generate_ir_from_parser_ast(root);
+    return debug;
+}
+
+}  // namespace ir
+
+namespace {
+
+int run_source_file(const char* path)
+{
+    const ir::PipelineResult ir_result = ir::generate_ir_from_source_file(path);
+    if (!ir_result.success)
+    {
+        std::cerr << "Pipeline failed: " << ir_result.error_text << "\n";
         return 1;
     }
 
-    std::cout << "Parse success!\n\n";
-    ASTNode* root = parser.get_ast_tree();
-    std::cout << "AST Tree:\n";
-    print_ast(root);
+    std::cout << "IR Quadruples:\n" << ir::dump_quadruples(ir_result.code) << "\n";
+    return 0;
+}
 
-    const ir::PipelineResult ir_result = ir::generate_ir_from_parser_ast(root);
-    if (!ir_result.success)
+int run_source_file_trace(const char* path)
+{
+    const ir::PipelineDebugResult debug = ir::analyze_source_file_with_debug(path);
+
+    std::cout << "LEX Output:\n" << debug.lexer_output << "\n";
+    std::cout << "YACC Output (Parser AST):\n" << debug.yacc_output << "\n";
+    std::cout << "IR Input AST:\n" << debug.ir_input_ast_output << "\n";
+    std::cout << "IR Quadruples:\n" << ir::dump_quadruples(debug.pipeline.code) << "\n";
+
+    if (!debug.pipeline.success)
     {
-        std::cerr << "\nIR generation warning: " << ir_result.error_text << "\n";
-        return 0;
+        std::cerr << "Pipeline failed: " << debug.pipeline.error_text << "\n";
+        return 1;
     }
-
-    std::cout << "\nIR Quadruples:\n" << ir::dump_quadruples(ir_result.code) << "\n";
     return 0;
 }
 
@@ -157,10 +325,18 @@ int run_source_file(const char* path)
 
 int main(int argc, char* argv[])
 {
-    if (argc > 1)
+    if (argc > 1) {
+        if (std::strcmp(argv[1], "--unit") == 0) {
+            return run_ir_unit_tests();
+        }
+        if (std::strcmp(argv[1], "--system") == 0) {
+            return run_system_integration_tests();
+        }
+        if (argc > 2 && std::strcmp(argv[1], "--trace") == 0) {
+            return run_source_file_trace(argv[2]);
+        }
         return run_source_file(argv[1]);
+    }
 
-    const int ir_ret = run_all_ir_tests();
-    const int e2e_ret = run_pipeline_e2e_tests();
-    return (ir_ret == 0 && e2e_ret == 0) ? 0 : 1;
+    return run_system_integration_tests();
 }

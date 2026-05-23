@@ -9,16 +9,16 @@ using namespace std;
 
 struct DFAState {
     int id;
-    unordered_set<int> nfaStates;  // 该DFA状态包含的NFA状态集合
-    unordered_map<char, int> transitions; // 字符 -> DFAState.id
+    unordered_set<int> nfaStates;  // NFA state subset represented by this DFA state
+    unordered_map<char, int> transitions; // input char -> DFAState.id
     bool isAccept = false;
-    int tokenID = -1;  // 对应哪条规则（优先级较高的）
+    int tokenID = -1;  // selected token id for accept state (smaller id = higher priority)
 };
 
 class DFA
 {
 public:
-    // unordered_map<unordered_set<int>, int>哈希函数
+    // Hash for unordered_set<int> used as key in unordered_map
     struct SetHash {
         size_t operator()(const unordered_set<int>& s) const {
             size_t hash = 0;
@@ -30,11 +30,11 @@ public:
     };
 
 public:
-    int startid; // 唯一化编号使用
-    int minDFAsid; //最小化dfa开始id
+    int startid; // Unique DFA state id allocator
+    int minDFAsid; // Start id after minimization
     NFA& nfa;
     vector<DFAState*> states;
-    unordered_map<unordered_set<int>, int, SetHash> subset2id;  // key: NFA状态集合, value: DFA状态编号
+    unordered_map<unordered_set<int>, int, SetHash> subset2id;  // key: NFA subset, value: DFA state id
 
 #ifdef DEBUG
     vector<int> nfaidInUse;
@@ -49,17 +49,17 @@ public:
         states.clear();
     }
 
-    // 创建一个节点, 右值参
+    // Create a new DFA state from epsilon-closure subset
     DFAState* createState(unordered_set<int>&& closure) {
         DFAState* s = new DFAState{ startid };
         startid++;
         s->nfaStates = std::move(closure);
-        // 加入状态集
+        // Add to state list
         states.push_back(s);
-        // 绑定映射
+        // Build reverse mapping
         subset2id[s->nfaStates] = s->id;
-        // 判断当前状态是否可被接受
-        // 并且设置规则编号，**保留编号最小的规则**，否则会发生覆盖
+        // Check accept property and resolve token priority
+        // Rule: choose the smallest token id among matched accept states.
         int minTokenId = INT_MAX;
         for (int id : s->nfaStates)
         {
@@ -74,11 +74,11 @@ public:
         return s;
     }
 
-    // epsilon闭包函数
+    // Epsilon closure helpers
     unordered_set<int> epsilonClosure(NFAState* s);
-    void epsilonClosure(unordered_set<int>& states);//直接修改当前states
+    void epsilonClosure(unordered_set<int>& states); // In-place closure expansion
 
-    // move(T,c),将状态集通过a进行转换
+    // move(T, c): transition from subset T on character c
     unordered_set<int> move(const unordered_set<int>& states, char symbol);
 
     void buildDFA();

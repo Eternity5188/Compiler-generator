@@ -10,10 +10,10 @@ using namespace std;
 //lexRE reserved characters
 const unordered_set<char> lex_RC{ '\\','.','|','*','(',')','+','?','{','}','[',']','#' };
 
-//字符集
+// Full ASCII character set used by this normalizer
 const string ALLSET("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!\"#%'()*+,-./:;<=>\?[\\]^{|}_ \n\t\v\f~&");
 
-//将LEX-RE 转为 常规RE
+// Normalize LEX regular expression into internal regular expression form
 class NormalizeRE
 {
 public:

@@ -27,10 +27,10 @@ public:
 	ReadLex(string fname = "resource/rule/lexical/lexical_rule.txt");
 	~ReadLex();
 
-	//逐行读取lex文件
+	// Read and parse the lex rule file
 	void read_lex_file(vector<string>& user_declarations,unordered_map<string, string>& elements, vector<Rule>& rules, vector<string>& subroutines);
 
-	//去除line两端的空格和制表符
+	// Trim spaces and tabs around a line
 	string& trim(string& s);
 };
 #endif

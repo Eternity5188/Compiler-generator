@@ -1,127 +1,103 @@
 # Compiler Generator
 
-一个 C 语言编译器前端的代码生成工具集。
+面向 C 语言子集的编译前端实践项目，包含：
+- 词法/语法生成器（generator）
+- 分析与中间代码生成入口（analyzer）
+- 分层测试与结果落盘（tests）
 
----
+## 快速开始
 
-## 项目结构
+### 1) 进入项目目录
 
+```powershell
+cd compiler-generator
 ```
+
+### 2) 一键构建 + 全量测试（推荐）
+
+```powershell
+.\build_all.bat
+```
+
+## 常用运行命令
+
+### 分步执行
+
+```powershell
+cmake -B build
+cmake --build build -j
+.\tests\run_all_tests.bat
+```
+
+### 单独执行某类测试
+
+```powershell
+.\tests\lex_yacc\run_lex_yacc_tests.bat
+.\tests\ir\run_ir_unit_tests.bat
+.\tests\system\run_system_tests.bat
+```
+
+### 直接运行 analyzer
+
+```powershell
+.\target\analyzer\Debug\analyzer.exe --unit
+.\target\analyzer\Debug\analyzer.exe --system
+.\target\analyzer\Debug\analyzer.exe .\tests\lex_yacc\lex_yacc_smoke.c
+```
+
+## 仓库结构
+
+```text
 compiler-generator/
-├── CMakeLists.txt              # 顶层构建配置
-├── build_all.bat              # 编译所有模块
-├── run_generator.bat          # 运行生成器
-├── run_analyzer.bat           # 运行分析器
-│
-├── common/                    # 公共模块
-│   ├── token.h
-│   └── token.cpp
-│
-├── generator/                 # 代码生成器
-│   ├── CMakeLists.txt
-│   ├── lexical/              # 词法分析器生成器
-│   │   └── lexical_generator.cpp
-│   └── syntax/               # 语法分析器生成器
-│       ├── syntax_generator.cpp
-│       ├── syntax_rule_parser.h
-│       ├── syntax_rule_parser.cpp
-│       ├── production.h
-│       ├── production.cpp
-│       ├── symbol.h
-│       └── symbol.cpp
-│
-├── analyzer/                 # 分析器
-│   ├── CMakeLists.txt
-│   └── main.cpp
-│
-├── resource/                # 资源文件
-│   └── rule/
-│       └── syntax_rule.txt   # 语法规则定义
-│
-└── doc/                     # 设计文档
-    ├── 中间代码生成设计文档.md
-    ├── 中间代码生成设计文档.pdf
-    ├── lex设计文档.pdf
-    ├── yacc.md
-    └── yacc.pdf
+├── CMakeLists.txt
+├── build_all.bat
+├── analyzer/
+├── common/
+├── generator/
+├── resource/
+├── tests/
+│   ├── run_all_tests.bat
+│   ├── lex_yacc/
+│   ├── ir/
+│   ├── system/
+│   └── output/
+└── doc/
 ```
-
----
 
 ## 模块说明
 
-### common
+- `generator/lexical`：词法生成器相关代码。
+- `generator/syntax`：语法生成器相关代码，读取 `resource/rule/syntax_rule.txt`。
+- `analyzer`：主入口与 IR 生成流程。
+- `tests/lex_yacc`：词法与语法综合语料的批量回归测试。
+- `tests/ir`：IR 单元测试与文件型 parser 用例。
+- `tests/system`：系统功能回归（basic）和压力用例（stress）。
 
-公共模块，提供 Token 类型定义，供其他模块使用。
+## 测试报告输出
 
-### generator
+执行测试后，会在 `tests/output` 生成详细报告：
 
-代码生成器模块，包含两个子模块：
+- `tests/output/lex_yacc`：lex_yacc 用例报告
+- `tests/output/ir_parser`：IR 文件型用例报告
+- `tests/output/system_basic`：系统功能回归报告
+- `tests/output/system_stress`：系统压力报告
 
-**lexical/** - 词法分析器生成器
-- 输入：正则表达式规则
-- 输出：词法分析器代码
+每个报告文件名使用对应源码文件名（如 `core_03_decl_no_init.txt`）。
 
-**syntax/** - 语法分析器生成器
-- 依赖 `resource/rule/syntax_rule.txt` 中的语法规则
-- 使用 `SyntaxRuleParser` 类解析规则文件
-- 支持终结符声明、优先级/结合性定义、产生式规则
+报告包含以下字段：
+- `CASE_NAME`
+- `SOURCE_CODE`
+- `LEX_OUTPUT`
+- `YACC_OUTPUT`
+- `IR_INPUT_AST`
+- `ANALYZER_OUTPUT` 或 `IR_QUADRUPLES / PIPELINE_ERROR`
 
-### analyzer
+## 语法规则与能力范围
 
-分析器模块，对源代码进行词法分析、语法分析处理。
+语法规则文件位于 `resource/rule/syntax_rule.txt`。
 
-### resource/rule
-
-存放语法规则定义文件。
-
-**syntax_rule.txt** 定义了 C 语言子集的语法规则：
-- 终结符声明（token）
-- 优先级和结合性
-- 产生式规则
-
----
-
-## 编译与运行
-
-### 编译
-
-```bash
-cmake -B build
-cmake --build build
-```
-
-或直接双击运行 `build_all.bat`。
-
-### 运行生成器
-
-```bash
-./target/generator/lexical_generator.exe
-./target/generator/syntax_generator.exe
-```
-
-或双击 `run_generator.bat`。
-
-### 运行分析器
-
-```bash
-./target/analyzer/analyzer.exe
-```
-
-或双击 `run_analyzer.bat`。
-
----
-
-## 语法规则
-
-详见 `resource/rule/syntax_rule.txt`。
-
-支持的 C 语言特性包括：
-- 基本类型（int, float, char, void）
-- 变量声明与赋值
-- 算术与关系运算
-- 逻辑运算
-- 控制流语句（if-else, while, do-while, for, break, continue）
-- 函数定义与调用
-- 数组
-- 指针操作
+当前覆盖的 C 子集能力包括：
+- 基本类型（`int`、`float`、`char`、`void`）
+- 声明、赋值、表达式
+- 关系/逻辑/算术运算
+- 基本控制流与函数调用（按当前语法子集实现范围）

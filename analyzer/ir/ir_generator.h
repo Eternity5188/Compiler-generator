@@ -33,6 +33,7 @@ private:
     void visit_program(const ASTNode* node);
     void visit_block(const ASTNode* node);
     void visit_decl(const ASTNode* node);
+    void visit_func_def(const ASTNode* node);
     void visit_assign(const ASTNode* node);
     void visit_return(const ASTNode* node);
     void visit_if(const ASTNode* node);
