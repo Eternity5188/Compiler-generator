@@ -19,6 +19,10 @@ cd compiler-generator
 .\build_all.bat
 ```
 
+## 流程图
+
+[![compiler-generator 流程图](assets/flowchart.png)](assets/flowchart.png)
+
 ## 常用运行命令
 
 ### 分步执行
