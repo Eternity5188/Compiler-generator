@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ast.h"
+#include "ir/ast.h"
 
 #include <algorithm>
 #include <cctype>

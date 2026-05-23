@@ -1,6 +1,6 @@
 #pragma once
 
-#include "symbol_table.h"
+#include "ir/symbol_table.h"
 
 #include <memory>
 #include <string>

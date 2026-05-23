@@ -1,6 +1,6 @@
-#include "pipeline_e2e_test_suite.h"
+#include "tests/pipeline_e2e_test_suite.h"
 
-#include "../ir/ir_pipeline_api.h"
+#include "ir/ir_pipeline_api.h"
 
 #include <cctype>
 #include <iostream>

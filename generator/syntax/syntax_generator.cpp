@@ -3,19 +3,15 @@
 #include "ast_tree.h"
 #include "lr_parser.h"
 #include <filesystem>
+#include <string>
+#include <vector>
 #include <iostream>
 #include <fstream>
-#include <vector>
-#include <string>
-
-
-void generate_ast_recursive(std::ofstream& cpp, const ASTNode* node, int& node_id);
-void generate_ast_tree(std::ofstream& cpp, const ASTNode* root);
 
 
 int main()
 {
-    std::filesystem::path rule_file{"./resource/rule/syntax_rule.txt"};
+    std::filesystem::path rule_file{"./resource/rule/syntax/syntax_rule.txt"};
 
     Grammar grammar;
     SyntaxRuleParser::parse(rule_file, grammar);
@@ -33,15 +29,15 @@ int main()
     std::ofstream h{h_file};
     std::ofstream cpp{cpp_file};
 
-    // 鐢熸垚.h鏂囦欢
+    // generate .h file
     h << R"(
 #pragma once
+#include "token.h"
 #include <cstdint>
 #include <string>
 #include <filesystem>
 #include <unordered_map>
 #include <vector>
-#include "token.h"
 )";
 
     h << R"(
@@ -93,7 +89,7 @@ private:
 };
 )";
 
-    // 鐢熸垚.cpp鏂囦欢
+    // generate .cpp file
     cpp << R"(
 #include "syntax_parser.h"
 #include <stack>
@@ -113,14 +109,14 @@ struct RawTableEntry
     uint32_t next_state;
 };
 
-const RawTableEntry kActionEntries[] = {
+const RawTableEntry action_table_data[] = {
 )";
     for (auto& e : parser.get_export_action_table())
         cpp << "    {" << e.state << ", \"" << e.symbol << "\", \"" << e.type << "\", " << e.next_state << "},\n";
     cpp << R"(
 };
 
-const RawTableEntry kGotoEntries[] = {
+const RawTableEntry goto_table_data[] = {
 )";
     for (auto& e : parser.get_export_goto_table())
         cpp << "    {" << e.state << ", \"" << e.symbol << "\", \"" << e.type << "\", " << e.next_state << "},\n";
@@ -131,7 +127,7 @@ const RawTableEntry kGotoEntries[] = {
 
     cpp << R"(
 SyntaxParser::SyntaxParser()
-    :grammar{}, action_table{}, goto_table{}, action_index{}, goto_index{}, ast_tree{nullptr}
+    :ast_tree{nullptr}
 {
 )";
 
@@ -148,12 +144,12 @@ SyntaxParser::SyntaxParser()
         cpp << "}});\n";
     }
     cpp << R"(
-    action_table.reserve(sizeof(kActionEntries) / sizeof(kActionEntries[0]));
-    for (const RawTableEntry& entry : kActionEntries)
+    action_table.reserve(sizeof(action_table_data) / sizeof(action_table_data[0]));
+    for (const RawTableEntry& entry : action_table_data)
         action_table.push_back({entry.state, entry.symbol, entry.type, entry.next_state});
 
-    goto_table.reserve(sizeof(kGotoEntries) / sizeof(kGotoEntries[0]));
-    for (const RawTableEntry& entry : kGotoEntries)
+    goto_table.reserve(sizeof(goto_table_data) / sizeof(goto_table_data[0]));
+    for (const RawTableEntry& entry : goto_table_data)
         goto_table.push_back({entry.state, entry.symbol, entry.type, entry.next_state});
 
     action_index.reserve(action_table.size());
@@ -248,7 +244,7 @@ bool SyntaxParser::parse(const std::vector<Token>& tokens)
             state_stack.push(goto_entry->next_state);
         }
 
-        // ====================== Accept锛堜綘鐨勮〃閲屼竴瀹氭湁锛侊級
+        // ====================== Accept
         else if (action->type == "Accept")
         {
             ast_tree = node_stack.top();
@@ -329,4 +325,3 @@ void SyntaxParser::clear_ast_tree()
     std::cout << "Code generated: syntax_parser" << std::endl;
     return 0;
 }
-

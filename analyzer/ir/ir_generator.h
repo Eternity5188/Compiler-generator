@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ast.h"
-#include "code_emitter.h"
-#include "semantic_error.h"
-#include "symbol_table.h"
+#include "ir/ast.h"
+#include "ir/code_emitter.h"
+#include "ir/semantic_error.h"
+#include "ir/symbol_table.h"
 
 #include <string>
 #include <vector>

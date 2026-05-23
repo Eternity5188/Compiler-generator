@@ -1,8 +1,8 @@
-#include "ir_test_suite.h"
+#include "tests/ir_test_suite.h"
 
 #include "syntax_parser.h"
-#include "../ir/ir_generator.h"
-#include "../ir/syntax_ast_adapter.h"
+#include "ir/ir_generator.h"
+#include "ir/syntax_ast_adapter.h"
 
 #include <algorithm>
 #include <functional>

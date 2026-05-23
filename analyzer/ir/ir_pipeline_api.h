@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ast.h"
-#include "code_emitter.h"
 #include "token.h"
+#include "ir/ast.h"
+#include "ir/code_emitter.h"
 
 #include <string>
 #include <vector>

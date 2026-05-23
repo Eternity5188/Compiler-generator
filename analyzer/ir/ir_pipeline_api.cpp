@@ -1,8 +1,8 @@
-#include "ir_pipeline_api.h"
+#include "ir/ir_pipeline_api.h"
 
 #include "syntax_parser.h"
-#include "ir_generator.h"
-#include "syntax_ast_adapter.h"
+#include "ir/ir_generator.h"
+#include "ir/syntax_ast_adapter.h"
 
 #include <sstream>
 

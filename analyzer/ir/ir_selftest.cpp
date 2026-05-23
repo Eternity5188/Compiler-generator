@@ -1,4 +1,4 @@
-#include "ir_generator.h"
+#include "ir/ir_generator.h"
 
 #include <iostream>
 #include <memory>

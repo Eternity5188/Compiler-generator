@@ -14,14 +14,14 @@
 
 namespace export_space
 {
-    // 文法结构（仅用于导出）
+    // Production for grammar
     struct Production
     {
         std::string left;
         std::vector<std::string> right;
     };
 
-    // ACTION/GOTO 表项
+    // ACTION/GOTO table
     struct TableEntry
     {
         uint32_t state;

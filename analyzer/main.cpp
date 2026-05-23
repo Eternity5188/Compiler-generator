@@ -1,6 +1,6 @@
-#include "ir/ir_pipeline_api.h"
 #include "lexical_parser.h"
 #include "syntax_parser.h"
+#include "ir/ir_pipeline_api.h"
 #include "tests/ir_test_suite.h"
 #include "tests/pipeline_e2e_test_suite.h"
 

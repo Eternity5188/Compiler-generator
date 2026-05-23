@@ -17,7 +17,7 @@ static string getLexRulePath(int argc, char* argv[])
 {
     if (argc > 1)
         return argv[1];
-    return "generator/lexical/c99.l";
+    return "resource/rule/lexical/lexical_rule.txt";
 }
 
 static string getGeneratedLexerSourcePath(int argc, char* argv[])
