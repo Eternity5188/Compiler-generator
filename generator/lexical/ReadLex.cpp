@@ -48,7 +48,7 @@ ReadLex::ReadLex(string fname):filename(fname)
 	file.open(filename);
     // ����ļ��Ƿ�ɹ���
     if (!file.is_open()) {
-        std::cerr << "Error: Unable to open file ../bin/test.txt" << std::endl;
+        std::cerr << "Error: Unable to open lexical rule file: " << filename << std::endl;
         exit(1);
     }
 }

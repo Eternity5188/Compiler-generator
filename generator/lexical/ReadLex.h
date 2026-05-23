@@ -24,7 +24,7 @@ public:
 	string filename;
 	ifstream file;
 public:
-	ReadLex(string fname = "c99.l");
+	ReadLex(string fname = "resource/rule/lexical/lexical_rule.txt");
 	~ReadLex();
 
 	//逐行读取lex文件
