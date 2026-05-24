@@ -1,31 +1,38 @@
 # Compiler Generator
 
-面向 C 语言子集的编译前端实践项目，包含：
-- 词法/语法生成器（generator）
-- 分析与中间代码生成入口（analyzer）
-- 分层测试与结果落盘（tests）
+A practical compiler frontend project targeting a subset of the C language, featuring:
 
-## 快速开始
+- Lexical and syntax parser generators (`generator`)
+- Semantic analysis and intermediate representation generation (`analyzer`)
+- Layered testing framework with structured report outputs (`tests`)
 
-### 1) 进入项目目录
+---
+
+# Quick Start
+
+## 1. Enter the Project Directory
 
 ```powershell
 cd compiler-generator
 ```
 
-### 2) 一键构建 + 全量测试（推荐）
+## 2. One-Click Build and Full Test Suite (Recommended)
 
 ```powershell
 .\build_all.bat
 ```
 
-## 流程图
+---
 
-[![compiler-generator 流程图](assets/flowchart.png)](assets/flowchart.png)
+# Workflow Diagram
 
-## 常用运行命令
+[![Compiler Generator Workflow](assets/flowchart.png)](assets/flowchart.png)
 
-### 分步执行
+---
+
+# Common Commands
+
+## Step-by-Step Build and Test
 
 ```powershell
 cmake -B build
@@ -33,7 +40,7 @@ cmake --build build -j
 .\tests\run_all_tests.bat
 ```
 
-### 单独执行某类测试
+## Run Specific Test Suites
 
 ```powershell
 .\tests\lex_yacc\run_lex_yacc_tests.bat
@@ -41,7 +48,7 @@ cmake --build build -j
 .\tests\system\run_system_tests.bat
 ```
 
-### 直接运行 analyzer
+## Run the Analyzer Directly
 
 ```powershell
 .\target\analyzer\Debug\analyzer.exe --unit
@@ -49,7 +56,9 @@ cmake --build build -j
 .\target\analyzer\Debug\analyzer.exe .\tests\lex_yacc\lex_yacc_smoke.c
 ```
 
-## 仓库结构
+---
+
+# Repository Structure
 
 ```text
 compiler-generator/
@@ -68,40 +77,78 @@ compiler-generator/
 └── doc/
 ```
 
-## 模块说明
+---
 
-- `generator/lexical`：词法生成器相关代码。
-- `generator/syntax`：语法生成器相关代码，读取 `resource/rule/syntax_rule.txt`。
-- `analyzer`：主入口与 IR 生成流程。
-- `tests/lex_yacc`：词法与语法综合语料的批量回归测试。
-- `tests/ir`：IR 单元测试与文件型 parser 用例。
-- `tests/system`：系统功能回归（basic）和压力用例（stress）。
+# Module Overview
 
-## 测试报告输出
+- `generator/lexical`  
+  Components related to lexical analyzer generation.
 
-执行测试后，会在 `tests/output` 生成详细报告：
+- `generator/syntax`  
+  Syntax parser generator implementation. Reads grammar rules from `resource/rule/syntax_rule.txt`.
 
-- `tests/output/lex_yacc`：lex_yacc 用例报告
-- `tests/output/ir_parser`：IR 文件型用例报告
-- `tests/output/system_basic`：系统功能回归报告
-- `tests/output/system_stress`：系统压力报告
+- `analyzer`  
+  Main frontend pipeline entry, including parsing, semantic analysis, and IR generation.
 
-每个报告文件名使用对应源码文件名（如 `core_03_decl_no_init.txt`）。
+- `tests/lex_yacc`  
+  Batch regression tests for integrated lexical and syntax analysis.
 
-报告包含以下字段：
+- `tests/ir`  
+  IR unit tests and parser-based file test cases.
+
+- `tests/system`  
+  System-level regression tests, including both functional and stress test suites.
+
+---
+
+# Test Report Outputs
+
+After running the test suite, detailed reports are generated under `tests/output`:
+
+- `tests/output/lex_yacc`  
+  Reports for lexical and syntax analysis test cases
+
+- `tests/output/ir_parser`  
+  Reports for IR parser file-based test cases
+
+- `tests/output/system_basic`  
+  Functional regression test reports
+
+- `tests/output/system_stress`  
+  Stress test reports
+
+Each report file is named after its corresponding source file, for example:
+
+```text
+core_03_decl_no_init.txt
+```
+
+Each report contains the following sections:
+
 - `CASE_NAME`
 - `SOURCE_CODE`
 - `LEX_OUTPUT`
 - `YACC_OUTPUT`
 - `IR_INPUT_AST`
-- `ANALYZER_OUTPUT` 或 `IR_QUADRUPLES / PIPELINE_ERROR`
+- `ANALYZER_OUTPUT`
+- `IR_QUADRUPLES`
+- `PIPELINE_ERROR`
 
-## 语法规则与能力范围
+---
 
-语法规则文件位于 `resource/rule/syntax_rule.txt`。
+# Grammar Rules and Supported Features
 
-当前覆盖的 C 子集能力包括：
-- 基本类型（`int`、`float`、`char`、`void`）
-- 声明、赋值、表达式
-- 关系/逻辑/算术运算
-- 基本控制流与函数调用（按当前语法子集实现范围）
+Grammar rules are defined in:
+
+```text
+resource/rule/syntax_rule.txt
+```
+
+The currently supported subset of the C language includes:
+
+- Primitive types (`int`, `float`, `char`, `void`)
+- Variable declarations and assignments
+- Arithmetic, relational, and logical expressions
+- Basic control flow constructs
+- Function calls (within the currently implemented grammar subset)
+- Intermediate representation (IR) generation pipeline
