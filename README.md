@@ -26,7 +26,7 @@ cd compiler-generator
 
 # Workflow Diagram
 
-[![Compiler Generator Workflow](assets/flowchart.png)](assets/flowchart.png)
+
 
 ---
 
